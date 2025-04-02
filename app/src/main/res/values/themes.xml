@@ -56,7 +56,15 @@
         <item name="android:background">@drawable/rounded_shape</item>
         <item name="android:gravity">center</item>
         <item name="android:padding">15dp</item>
+    </style>
 
+    <style name="TextMiniButton" parent="Base.Theme.Akira">
+        <item name="android:background">@drawable/rounded_shape</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingLeft">8dp</item>
+        <item name="android:paddingRight">8dp</item>
+        <item name="android:paddingTop">2dp</item>
+        <item name="android:paddingBottom">2dp</item>
     </style>
 
     <style name="Button" parent="Base.Theme.Akira">
