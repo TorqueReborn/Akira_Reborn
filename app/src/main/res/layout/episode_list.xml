@@ -9,11 +9,7 @@
         android:layout_width="60dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:background="@drawable/rounded_shape"
-        android:gravity="center"
-        android:padding="15dp"
-        android:text=""
-        android:textColor="#5C5C5C"
+        style="@style/TextButton"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

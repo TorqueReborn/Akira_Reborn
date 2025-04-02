@@ -48,7 +48,7 @@ public class AllAnimeDetails {
             status = show.getString("status");
 
             if (status.equals("Not Yet Released")){
-                status = "Not Released";
+                status = "Not Found";
             }
 
             // thumbnail fix

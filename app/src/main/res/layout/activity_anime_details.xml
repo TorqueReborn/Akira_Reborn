@@ -35,7 +35,7 @@
                 android:layout_width="100dp"
                 android:layout_height="141dp"
                 android:layout_marginStart="16dp"
-                app:cardCornerRadius="10dp"
+                app:cardCornerRadius="@dimen/default_corner_radius"
                 app:layout_constraintBottom_toBottomOf="@+id/animeBanner"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/animeBanner">
@@ -63,8 +63,7 @@
                 android:layout_marginStart="24dp"
                 android:layout_marginTop="16dp"
                 android:layout_marginEnd="24dp"
-                android:textAlignment="center"
-                android:textSize="24sp"
+                style="@style/Heading"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/cardView" />
@@ -76,6 +75,7 @@
                 android:layout_marginStart="24dp"
                 android:layout_marginTop="16dp"
                 android:layout_marginEnd="24dp"
+                style="@style/SmallBody"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/animeName" />
@@ -86,7 +86,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="@string/episodes"
-                android:textSize="20sp"
+                style="@style/SubHeading"
                 app:layout_constraintStart_toStartOf="@+id/animeDescription"
                 app:layout_constraintTop_toBottomOf="@+id/animeDescription" />
 
@@ -109,7 +109,7 @@
                 android:layout_marginStart="24dp"
                 android:layout_marginTop="16dp"
                 android:layout_marginEnd="8dp"
-                android:background="@drawable/rounded_shape"
+                style="@style/Button"
                 android:text="@string/prequel"
                 app:layout_constraintEnd_toStartOf="@+id/button3"
                 app:layout_constraintStart_toStartOf="parent"
@@ -122,7 +122,7 @@
                 android:layout_marginStart="8dp"
                 android:layout_marginTop="16dp"
                 android:layout_marginEnd="24dp"
-                android:background="@drawable/rounded_shape"
+                style="@style/Button"
                 android:text="@string/sequel"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@+id/button2"
@@ -136,7 +136,7 @@
                 android:layout_marginTop="16dp"
                 android:layout_marginEnd="24dp"
                 android:layout_marginBottom="24dp"
-                android:background="@drawable/rounded_shape"
+                style="@style/Button"
                 android:text="@string/watch"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"

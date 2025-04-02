@@ -24,6 +24,16 @@
         <item name="android:fontFamily">@font/poppins</item>
     </style>
 
+    <style name="Heading" parent="Base.Theme.Akira">
+        <item name="android:textAlignment">center</item>
+        <item name="android:textSize">24sp</item>
+    </style>
+
+    <style name="SubHeading" parent="Base.Theme.Akira">
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">20sp</item>
+    </style>
+
     <style name="SmallHeading" parent="Base.Theme.Akira">
         <item name="android:textStyle">bold</item>
         <item name="android:singleLine">true</item>
@@ -40,6 +50,17 @@
     <style name="SmallBody" parent="Base.Theme.Akira">
         <item name="android:textSize">11sp</item>
         <item name="android:textStyle">italic</item>
+    </style>
+
+    <style name="TextButton" parent="Base.Theme.Akira">
+        <item name="android:background">@drawable/rounded_shape</item>
+        <item name="android:gravity">center</item>
+        <item name="android:padding">15dp</item>
+
+    </style>
+
+    <style name="Button" parent="Base.Theme.Akira">
+        <item name="android:background">@drawable/rounded_shape</item>
     </style>
 
 </resources>
