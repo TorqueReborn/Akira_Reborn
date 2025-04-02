@@ -71,7 +71,7 @@ public class AnimeAdapter extends RecyclerView.Adapter<AnimeAdapter.ViewHolder> 
             animeImage = itemView.findViewById(R.id.anime_image);
             animeName = itemView.findViewById(R.id.anime_name);
             animeEpisode = itemView.findViewById(R.id.anime_episodes);
-            animeSeason = itemView.findViewById(R.id.anime_season);
+            animeSeason = itemView.findViewById(R.id.anime_rating);
             animeStatus = itemView.findViewById(R.id.anime_status);
         }
     }

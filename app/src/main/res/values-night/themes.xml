@@ -19,6 +19,27 @@
         <!-- Window background color. -->
         <item name="android:windowBackground">#121212</item>
         <!-- Text color. -->
-        <item name="android:textColor">#E0E0E0</item>
+        <item name="android:textColor">@color/default_font_color</item>
+        <!--    Default Font    -->
+        <item name="android:fontFamily">@font/poppins</item>
     </style>
+
+    <style name="SmallHeading" parent="Base.Theme.Akira">
+        <item name="android:textStyle">bold</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:padding">6dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <style name="SmallSubHeading" parent="Base.Theme.Akira">
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="SmallBody" parent="Base.Theme.Akira">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">italic</item>
+    </style>
+
 </resources>

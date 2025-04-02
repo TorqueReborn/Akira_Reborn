@@ -1,36 +1,11 @@
 <resources>
     <string name="app_name">Akira</string>
-    <string name="anime_image">Anime Image</string>
-    <string name="anime_name">Anime Name</string>
-    <string name="anime_thumbnail">Anime Thumbnail</string>
     <string name="anime_banner">Anime Banner</string>
+    <string name="anime_image">Anime Image</string>
+    <string name="episodes">Episodes</string>
     <string name="prequel">Prequel</string>
     <string name="sequel">Sequel</string>
-    <string name="anime_watch">Anime Watch</string>
-    <string name="anime">Anime</string>
-    <string name="manga">Manga</string>
-    <string name="add">Add</string>
-    <string name="delete">Delete</string>
-    <string name="current">CURRENT</string>
-    <string name="planning">PLANNING</string>
-    <string name="completed">COMPLETED</string>
-    <string name="dropped">DROPPED</string>
-    <string name="paused">PAUSED</string>
-    <string name="repeating">REPEATING</string>
-    <string name="image_of_anime">Image of Anime</string>
-    <string name="one_piece">One Piece</string>
-    <string name="episodes">Episodes</string>
-    <string name="_1024">1024</string>
     <string name="watch">Watch</string>
-    <string name="season">Season</string>
-    <string name="status">Status</string>
-    <string name="releasing">Releasing</string>
     <string name="rating">Rating</string>
-    <string-array name="anime_status">
-        <item>CURRENT</item>
-        <item>COMPLETED</item>
-        <item>DROPPED</item>
-        <item>PLANNING</item>
-        <item>PAUSED</item>
-    </string-array>
+    <string name="status">Status</string>
 </resources>
