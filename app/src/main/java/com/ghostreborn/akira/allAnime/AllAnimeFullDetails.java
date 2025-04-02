@@ -1,5 +1,6 @@
 package com.ghostreborn.akira.allAnime;
 
+import android.text.Html;
 import android.util.Log;
 
 import com.ghostreborn.akira.model.AnimeDetails;
@@ -28,18 +29,25 @@ public class AllAnimeFullDetails {
     private String full(String id) {
         String variables = "\"showId\":\"" + id + "\"";
         String queryTypes = "$showId:String!";
-        String query = "show(_id:$showId){thumbnail,banner}";
+        String query = "show(_id:$showId){englishName,description,thumbnail,banner}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
     public AnimeDetails fullDetails(String id) {
         String rawJSON = full(id);
+
+        String anime = "";
+        String description = "";
         String thumbnail = "";
         String banner = "";
+
         try {
             JSONObject show = new JSONObject(rawJSON)
                     .getJSONObject("data")
                     .getJSONObject("show");
+
+            anime = show.getString("englishName");
+            description = String.valueOf(Html.fromHtml(show.getString("description"), Html.FROM_HTML_MODE_LEGACY));
             thumbnail = show.getString("thumbnail");
             banner = show.getString("banner");
 
@@ -51,7 +59,7 @@ public class AllAnimeFullDetails {
         } catch (JSONException e) {
             Log.e("TAG", e.toString());
         }
-        return new AnimeDetails(banner, thumbnail);
+        return new AnimeDetails(anime, description, banner, thumbnail);
     }
 
 }

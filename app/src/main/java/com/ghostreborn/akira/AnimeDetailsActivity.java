@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -39,8 +40,14 @@ public class AnimeDetailsActivity extends AppCompatActivity {
         executor.execute(() -> {
             AnimeDetails animeDetails = new AllAnimeFullDetails().fullDetails(animeID);
             mainHandler.post(() -> {
+                TextView animeName = findViewById(R.id.animeName);
+                TextView animeDescription = findViewById(R.id.animeDescription);
                 ImageView animeImage = findViewById(R.id.animeImage);
                 ImageView animeBanner = findViewById(R.id.animeBanner);
+
+                animeName.setText(animeDetails.getAnimeName());
+                animeDescription.setText(animeDetails.getAnimeDescription());
+
                 Glide.with(this)
                         .load(animeDetails.getAnimeThumbnail())
                         .into(animeImage);
