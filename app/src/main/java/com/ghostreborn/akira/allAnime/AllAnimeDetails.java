@@ -24,7 +24,7 @@ public class AllAnimeDetails {
     private String details(String id){
         String variables = "\"showId\":\"" + id + "\"";
         String queryTypes = "$showId:String!";
-        String query = "show(_id:$showId){englishName,thumbnail,lastEpisodeInfo,season,status}";
+        String query = "show(_id:$showId){englishName,thumbnail,lastEpisodeInfo,rating,status}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
@@ -33,7 +33,7 @@ public class AllAnimeDetails {
         String name = "";
         String thumbnail = "";
         String episodes = "";
-        String season = "";
+        String rating = "";
         String status = "";
         try {
             JSONObject show = new JSONObject(rawJSON)
@@ -44,11 +44,12 @@ public class AllAnimeDetails {
             episodes = show.getJSONObject("lastEpisodeInfo")
                     .getJSONObject("sub")
                     .getString("episodeString");
-            season = show.getJSONObject("season")
-                    .getString("quarter") + " " +
-                    show.getJSONObject("season")
-                            .getString("year");
+            rating = show.getString("rating");
             status = show.getString("status");
+
+            if (status.equals("Not Yet Released")){
+                status = "Not Released";
+            }
 
             // thumbnail fix
             if(!thumbnail.contains("https")){
@@ -61,7 +62,7 @@ public class AllAnimeDetails {
         anime.setAnimeName(name);
         anime.setAnimeImage(thumbnail);
         anime.setAnimeEpisodes(episodes);
-        anime.setAnimeSeason(season);
+        anime.setAnimeRating(rating);
         anime.setAnimeStatus(status);
 
         return anime;

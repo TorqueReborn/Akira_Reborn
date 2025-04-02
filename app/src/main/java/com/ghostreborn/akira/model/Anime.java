@@ -6,7 +6,7 @@ public class Anime {
     private String animeName;
     private String animeImage;
     private String animeEpisodes;
-    private String animeSeason;
+    private String animeRating;
     private String animeStatus;
 
     public Anime(
@@ -31,8 +31,8 @@ public class Anime {
         return animeEpisodes;
     }
 
-    public String getAnimeSeason() {
-        return animeSeason;
+    public String getAnimeRating() {
+        return animeRating;
     }
 
     public String getAnimeStatus() {
@@ -51,8 +51,8 @@ public class Anime {
         this.animeEpisodes = animeEpisodes;
     }
 
-    public void setAnimeSeason(String animeSeason) {
-        this.animeSeason = animeSeason;
+    public void setAnimeRating(String animeRating) {
+        this.animeRating = animeRating;
     }
 
     public void setAnimeStatus(String animeStatus) {

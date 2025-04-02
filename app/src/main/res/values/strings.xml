@@ -21,6 +21,11 @@
     <string name="one_piece">One Piece</string>
     <string name="episodes">Episodes</string>
     <string name="_1024">1024</string>
+    <string name="watch">Watch</string>
+    <string name="season">Season</string>
+    <string name="status">Status</string>
+    <string name="releasing">Releasing</string>
+    <string name="rating">Rating</string>
     <string-array name="anime_status">
         <item>CURRENT</item>
         <item>COMPLETED</item>

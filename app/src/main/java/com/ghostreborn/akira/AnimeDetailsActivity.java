@@ -11,8 +11,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.ghostreborn.akira.adapter.EpisodeAdapter;
 import com.ghostreborn.akira.allAnime.AllAnimeFullDetails;
 import com.ghostreborn.akira.model.AnimeDetails;
 
@@ -37,13 +40,24 @@ public class AnimeDetailsActivity extends AppCompatActivity {
         ExecutorService executor = Executors.newCachedThreadPool();
         Handler mainHandler = new Handler(Looper.getMainLooper());
 
+        RecyclerView episodeRecycler = findViewById(R.id.episodeRecycler);
+        LinearLayoutManager manager = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
+        episodeRecycler.setLayoutManager(manager);
+
         executor.execute(() -> {
             AnimeDetails animeDetails = new AllAnimeFullDetails().fullDetails(animeID);
             mainHandler.post(() -> {
+                if (animeDetails == null){
+                    finish();
+                }
                 TextView animeName = findViewById(R.id.animeName);
                 TextView animeDescription = findViewById(R.id.animeDescription);
                 ImageView animeImage = findViewById(R.id.animeImage);
                 ImageView animeBanner = findViewById(R.id.animeBanner);
+
+                assert animeDetails != null;
+                EpisodeAdapter adapter = new EpisodeAdapter(this, animeDetails.getAnimeEpisodes(), 5);
+                episodeRecycler.setAdapter(adapter);
 
                 animeName.setText(animeDetails.getAnimeName());
                 animeDescription.setText(animeDetails.getAnimeDescription());

@@ -5,10 +5,12 @@ import android.util.Log;
 
 import com.ghostreborn.akira.model.AnimeDetails;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -22,24 +24,30 @@ public class AllAnimeFullDetails {
         try (Response response = new OkHttpClient().newCall(request).execute()) {
             return response.body() != null ? response.body().string() : "{}";
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            Log.e("TAG", e.toString());
         }
+        return "{}";
     }
 
     private String full(String id) {
         String variables = "\"showId\":\"" + id + "\"";
         String queryTypes = "$showId:String!";
-        String query = "show(_id:$showId){englishName,description,thumbnail,banner}";
+        String query = "show(_id:$showId){englishName,description,thumbnail,banner,availableEpisodesDetail}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
     public AnimeDetails fullDetails(String id) {
         String rawJSON = full(id);
 
+        if (rawJSON.equals("{}")){
+            return null;
+        }
+
         String anime = "";
         String description = "";
         String thumbnail = "";
         String banner = "";
+        ArrayList<String> episodes = new ArrayList<>();
 
         try {
             JSONObject show = new JSONObject(rawJSON)
@@ -51,6 +59,12 @@ public class AllAnimeFullDetails {
             thumbnail = show.getString("thumbnail");
             banner = show.getString("banner");
 
+            JSONArray sub = show.getJSONObject("availableEpisodesDetail")
+                    .getJSONArray("sub");
+            for(int i=0; i<sub.length(); i++){
+                episodes.add(sub.getString(i));
+            }
+
             // thumbnail fix
             if (!thumbnail.contains("https")) {
                 thumbnail = "https://wp.youtube-anime.com/aln.youtube-anime.com/" + thumbnail;
@@ -59,7 +73,7 @@ public class AllAnimeFullDetails {
         } catch (JSONException e) {
             Log.e("TAG", e.toString());
         }
-        return new AnimeDetails(anime, description, banner, thumbnail);
+        return new AnimeDetails(anime, description, banner, thumbnail, episodes);
     }
 
 }

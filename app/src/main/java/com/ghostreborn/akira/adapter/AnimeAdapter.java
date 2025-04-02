@@ -44,7 +44,7 @@ public class AnimeAdapter extends RecyclerView.Adapter<AnimeAdapter.ViewHolder> 
                 .into(holder.animeImage);
         holder.animeName.setText(anime.getAnimeName());
         holder.animeEpisode.setText(anime.getAnimeEpisodes());
-        holder.animeSeason.setText(anime.getAnimeSeason());
+        holder.animeSeason.setText(anime.getAnimeRating());
         holder.animeStatus.setText(anime.getAnimeStatus());
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, AnimeDetailsActivity.class);
