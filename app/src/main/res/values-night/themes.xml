@@ -1,7 +1,24 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.Akira" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+<resources>
+    <style name="Base.Theme.Akira" parent="Theme.Material3.DayNight.NoActionBar"/>
+    <style name="Theme.Akira" parent="Base.Theme.Akira">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">#1F1F1F</item>
+        <item name="colorPrimaryVariant">#121212</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <!-- Secondary color. -->
+        <item name="colorSecondary">#373737</item>
+        <item name="colorSecondaryVariant">#2C2C2C</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <!-- Background and surface colors. -->
+        <item name="backgroundColor">#121212</item>
+        <item name="colorSurface">#1E1E1E</item>
+        <item name="colorOnBackground">#E0E0E0</item>
+        <item name="colorOnSurface">#E0E0E0</item>
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <!-- Window background color. -->
+        <item name="android:windowBackground">#121212</item>
+        <!-- Text color. -->
+        <item name="android:textColor">#E0E0E0</item>
     </style>
 </resources>
