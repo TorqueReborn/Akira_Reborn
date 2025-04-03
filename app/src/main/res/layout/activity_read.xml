@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     tools:context=".ui.ReadActivity">
 
-    <ImageView
+    <com.ghostreborn.akira.utils.ZoomableImageView
         android:id="@+id/manga_thumbnail"
         android:layout_width="0dp"
         android:layout_height="0dp"
