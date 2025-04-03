@@ -1,5 +1,6 @@
 package com.ghostreborn.akira.ui;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -18,6 +19,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.ghostreborn.akira.R;
+import com.ghostreborn.akira.adapter.ChapterAdapter;
 import com.ghostreborn.akira.allManga.AllMangaFullDetails;
 import com.ghostreborn.akira.model.MangaDetails;
 
@@ -63,12 +65,12 @@ public class MangaDetailsActivity extends AppCompatActivity {
                 TextView moreButton = findViewById(R.id.more_button);
                 ProgressBar loadingProgress = findViewById(R.id.loading_progress);
 
-//                moreButton.setOnClickListener(v -> {
-//                    Intent intent = new Intent(this, EpisodesActivity.class);
-//                    intent.putExtra("ANIME_ID", animeID);
-//                    intent.putStringArrayListExtra("EPISODE_LIST", animeDetails.getAnimeEpisodes());
-//                    startActivity(intent);
-//                });
+                moreButton.setOnClickListener(v -> {
+                    Intent intent = new Intent(this, ChaptersActivity.class);
+                    intent.putExtra("MANGA_ID", mangaID);
+                    intent.putStringArrayListExtra("CHAPTER_LIST", mangaDetails.getMangaChapters());
+                    startActivity(intent);
+                });
 
 //                readButton.setOnClickListener(v -> {
 //                    loadingProgress.setVisibility(View.VISIBLE);
@@ -83,8 +85,8 @@ public class MangaDetailsActivity extends AppCompatActivity {
 //                    });
 //                });
 
-//                EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, animeDetails.getAnimeEpisodes(), 5, loadingProgress);
-//                episodeRecycler.setAdapter(adapter);
+                ChapterAdapter adapter = new ChapterAdapter(this, mangaID, mangaDetails.getMangaChapters(), 5, loadingProgress);
+                episodeRecycler.setAdapter(adapter);
 
                 mangaName.setText(mangaDetails.getMangaName());
                 mangaDescription.setText(mangaDetails.getMangaDescription());
