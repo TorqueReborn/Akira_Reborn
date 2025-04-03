@@ -6,10 +6,11 @@
 
     <TextView
         android:id="@+id/episodeNumber"
-        android:layout_width="60dp"
+        style="@style/TextButton"
+        android:layout_width="70dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        style="@style/TextButton"
+        android:layout_marginTop="8dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

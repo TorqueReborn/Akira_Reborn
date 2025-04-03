@@ -16,6 +16,7 @@ import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.allAnime.AllAnimeStream;
 import com.ghostreborn.akira.ui.PlayActivity;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,7 +53,8 @@ public class EpisodeAdapter extends RecyclerView.Adapter<EpisodeAdapter.ViewHold
         }
         holder.itemView.setOnClickListener(v -> executor.execute(()-> {
             assert episodes != null;
-            String url = new AllAnimeStream().serverUrls(id, episodes.get(position)).get(0);
+            ArrayList<String> urls = new AllAnimeStream().serverUrls(id, episodes.get(position));
+            String url = urls.get(0);
             mainHandler.post(()-> {
                 Intent intent = new Intent(context, PlayActivity.class);
                 intent.putExtra("SERVER_URL", url);

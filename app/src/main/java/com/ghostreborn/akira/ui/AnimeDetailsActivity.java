@@ -59,10 +59,19 @@ public class AnimeDetailsActivity extends AppCompatActivity {
                 ImageView animeImage = findViewById(R.id.animeImage);
                 ImageView animeBanner = findViewById(R.id.animeBanner);
                 Button watchButton = findViewById(R.id.watch_button);
+                TextView moreButton = findViewById(R.id.more_button);
+
+                moreButton.setOnClickListener(v -> {
+                    Intent intent = new Intent(this, EpisodesActivity.class);
+                    assert animeDetails != null;
+                    intent.putExtra("ANIME_ID", animeID);
+                    intent.putStringArrayListExtra("EPISODE_LIST", animeDetails.getAnimeEpisodes());
+                    startActivity(intent);
+                });
 
                 watchButton.setOnClickListener(v -> executor.execute(() -> {
                     assert animeDetails != null;
-                    String url = new AllAnimeStream().serverUrls(animeID, animeDetails.getAnimeEpisodes().get(1)).get(0);
+                    String url = new AllAnimeStream().serverUrls(animeID, animeDetails.getAnimeEpisodes().get(0)).get(0);
                     mainHandler.post(() -> {
                         Intent intent = new Intent(this, PlayActivity.class);
                         intent.putExtra("SERVER_URL", url);
