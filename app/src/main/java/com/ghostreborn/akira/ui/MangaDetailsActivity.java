@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -21,8 +22,10 @@ import com.bumptech.glide.Glide;
 import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.adapter.ChapterAdapter;
 import com.ghostreborn.akira.allManga.AllMangaFullDetails;
+import com.ghostreborn.akira.allManga.AllMangaRead;
 import com.ghostreborn.akira.model.MangaDetails;
 
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -72,18 +75,18 @@ public class MangaDetailsActivity extends AppCompatActivity {
                     startActivity(intent);
                 });
 
-//                readButton.setOnClickListener(v -> {
-//                    loadingProgress.setVisibility(View.VISIBLE);
-//                    executor.execute(() -> {
-//                        ArrayList<String> urls = new AllAnimeStream().serverUrls(animeID, animeDetails.getAnimeEpisodes().get(animeDetails.getAnimeEpisodes().size() - 1));
-//                        mainHandler.post(() -> {
-//                            Intent intent = new Intent(this, PlayActivity.class);
-//                            intent.putStringArrayListExtra("SERVER_URLS", urls);
-//                            startActivity(intent);
-//                            loadingProgress.setVisibility(View.GONE);
-//                        });
-//                    });
-//                });
+                readButton.setOnClickListener(v -> {
+                    loadingProgress.setVisibility(View.VISIBLE);
+                    executor.execute(() -> {
+                        ArrayList<String> thumbnails = new AllMangaRead().getChapters(mangaID, mangaDetails.getMangaChapters().get(mangaDetails.getMangaChapters().size() - 1));
+                        mainHandler.post(() -> {
+                            Intent intent = new Intent(this, ReadActivity.class);
+                            intent.putStringArrayListExtra("MANGA_THUMBNAILS", thumbnails);
+                            startActivity(intent);
+                            loadingProgress.setVisibility(View.GONE);
+                        });
+                    });
+                });
 
                 ChapterAdapter adapter = new ChapterAdapter(this, mangaID, mangaDetails.getMangaChapters(), 5, loadingProgress);
                 episodeRecycler.setAdapter(adapter);

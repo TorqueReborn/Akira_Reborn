@@ -12,4 +12,5 @@
     <string name="no_internet_available">No Internet Available</string>
     <string name="read">Read</string>
     <string name="chapters">Chapters</string>
+    <string name="manga_thumbnail">Manga Thumbnail</string>
 </resources>
