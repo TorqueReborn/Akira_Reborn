@@ -3,7 +3,6 @@ package com.ghostreborn.akira.ui;
 import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ProgressBar;
@@ -118,12 +117,6 @@ public class PlayActivity extends AppCompatActivity {
         super.onStart();
         if (player != null) {
             player.play();
-            try {
-                Thread.sleep(500);
-                player.pause();
-            } catch (InterruptedException e) {
-                Log.e("TAG", "Error");
-            }
         }
     }
 
