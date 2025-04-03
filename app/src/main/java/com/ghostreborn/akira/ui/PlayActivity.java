@@ -3,6 +3,7 @@ package com.ghostreborn.akira.ui;
 import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ProgressBar;
@@ -16,6 +17,8 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionOverride;
+import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 
@@ -66,8 +69,8 @@ public class PlayActivity extends AppCompatActivity {
         player = new ExoPlayer.Builder(this).build();
         playerView.setPlayer(player);
 
-        Uri videoUri = Uri.parse(urls.get(currentIndex));
-        MediaItem mediaItem = MediaItem.fromUri(videoUri);
+//        Uri videoUri = Uri.parse(urls.get(currentIndex));
+        MediaItem mediaItem = MediaItem.fromUri(Uri.parse("https://repackager.wixmp.com/video.wixstatic.com/video/bd1bd7_43978885514d4ed5b048a2a7c84187c5/,480p,720p,1080p,/mp4/file.mp4.urlset/master.m3u8"));
         player.setMediaItem(mediaItem);
         player.prepare();
         player.play();
@@ -80,6 +83,24 @@ public class PlayActivity extends AppCompatActivity {
                 } else if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
                     progressBar.setVisibility(View.GONE);
                 }
+            }
+
+            @Override
+            public void onTracksChanged(@NonNull Tracks tracks) {
+                player.setTrackSelectionParameters(
+                        player
+                                .getTrackSelectionParameters()
+                                .buildUpon()
+                                .setOverrideForType(
+                                        new TrackSelectionOverride(
+                                                tracks.getGroups()
+                                                        .get(0)
+                                                        .getMediaTrackGroup(),
+                                                0
+                                        )
+                                )
+                                .build()
+                );
             }
 
             @Override
@@ -97,6 +118,12 @@ public class PlayActivity extends AppCompatActivity {
         super.onStart();
         if (player != null) {
             player.play();
+            try {
+                Thread.sleep(500);
+                player.pause();
+            } catch (InterruptedException e) {
+                Log.e("TAG", "Error");
+            }
         }
     }
 
