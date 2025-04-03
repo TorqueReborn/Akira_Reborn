@@ -54,10 +54,9 @@ public class EpisodeAdapter extends RecyclerView.Adapter<EpisodeAdapter.ViewHold
         holder.itemView.setOnClickListener(v -> executor.execute(()-> {
             assert episodes != null;
             ArrayList<String> urls = new AllAnimeStream().serverUrls(id, episodes.get(position));
-            String url = urls.get(0);
             mainHandler.post(()-> {
                 Intent intent = new Intent(context, PlayActivity.class);
-                intent.putExtra("SERVER_URL", url);
+                intent.putStringArrayListExtra("SERVER_URLS", urls);
                 context.startActivity(intent);
             });
         }));

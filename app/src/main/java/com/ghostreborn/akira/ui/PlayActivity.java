@@ -8,23 +8,28 @@ import android.view.WindowManager;
 import android.widget.ProgressBar;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 
 import com.ghostreborn.akira.R;
 
+import java.util.ArrayList;
+
 public class PlayActivity extends AppCompatActivity {
 
-    private String url;
+    private ArrayList<String> urls;
     private PlayerView playerView;
     private ExoPlayer player;
     private ProgressBar progressBar;
+    private int currentIndex = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,7 +42,7 @@ public class PlayActivity extends AppCompatActivity {
             return insets;
         });
 
-        url = getIntent().getStringExtra("SERVER_URL");
+        urls = getIntent().getStringArrayListExtra("SERVER_URLS");
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
@@ -61,7 +66,7 @@ public class PlayActivity extends AppCompatActivity {
         player = new ExoPlayer.Builder(this).build();
         playerView.setPlayer(player);
 
-        Uri videoUri = Uri.parse(url);
+        Uri videoUri = Uri.parse(urls.get(currentIndex));
         MediaItem mediaItem = MediaItem.fromUri(videoUri);
         player.setMediaItem(mediaItem);
         player.prepare();
@@ -74,6 +79,14 @@ public class PlayActivity extends AppCompatActivity {
                     progressBar.setVisibility(View.VISIBLE);
                 } else if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
                     progressBar.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onPlayerError(@NonNull PlaybackException error) {
+                currentIndex++;
+                if (currentIndex < urls.size()) {
+                    initializePlayer();
                 }
             }
         });
