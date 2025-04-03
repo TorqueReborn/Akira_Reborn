@@ -2,6 +2,8 @@ package com.ghostreborn.akira.adapter;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -42,6 +44,13 @@ public class AnimeAdapter extends RecyclerView.Adapter<AnimeAdapter.ViewHolder> 
         Glide.with(context)
                 .load(anime.getAnimeImage())
                 .into(holder.animeImage);
+
+        // Grey scale the image
+        ColorMatrix matrix = new ColorMatrix();
+        matrix.setSaturation(0.35f);
+        ColorMatrixColorFilter filter = new ColorMatrixColorFilter(matrix);
+        holder.animeImage.setColorFilter(filter);
+
         holder.animeName.setText(anime.getAnimeName());
         holder.animeEpisode.setText(anime.getAnimeEpisodes());
         holder.animeSeason.setText(anime.getAnimeRating());
