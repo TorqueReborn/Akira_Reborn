@@ -15,16 +15,6 @@ import okhttp3.Response;
 
 public class AllMangaRead {
 
-    private String connectAllManga(String url) {
-        Request request = new Request.Builder().url(url).header("Referer", "https://youtu-chan.com/").build();
-        try (Response response = new OkHttpClient().newCall(request).execute()) {
-            return response.body() != null ? response.body().string() : "{}";
-        } catch (IOException e) {
-            Log.e("TAG", e.toString());
-        }
-        return "{}";
-    }
-
     private String connectAllManga(String variables, String queryTypes, String query) {
         String url = "https://api.allanime.day/api?variables={" + variables + "}&query=query(" + queryTypes + "){" + query + "}";
         Request request = new Request.Builder().url(url).header("Referer", "https://allmanga.to").build();
