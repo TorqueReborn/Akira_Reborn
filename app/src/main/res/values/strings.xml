@@ -9,4 +9,5 @@
     <string name="rating">Rating</string>
     <string name="status">Status</string>
     <string name="more">More</string>
+    <string name="no_internet_available">No Internet Available</string>
 </resources>

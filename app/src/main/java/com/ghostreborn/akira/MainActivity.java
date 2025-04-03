@@ -1,5 +1,6 @@
 package com.ghostreborn.akira;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -16,6 +17,7 @@ import com.ghostreborn.akira.adapter.AnimeAdapter;
 import com.ghostreborn.akira.allAnime.AllAnimeDetails;
 import com.ghostreborn.akira.allAnime.AllAnimeQueryPopular;
 import com.ghostreborn.akira.model.Anime;
+import com.ghostreborn.akira.utils.MiscUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +25,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
+
+    private RecyclerView animeRecycler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,10 +39,20 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        RecyclerView recycler = findViewById(R.id.anime_recycler);
-        GridLayoutManager layoutManager = new GridLayoutManager(this, 2);
-        recycler.setLayoutManager(layoutManager);
+        if(MiscUtils.isNetworkConnected(this)){
+            getAnime();
+        } else{
+            startActivity(new Intent(this, NoNetworkActivity.class));
+            finish();
+        }
 
+        animeRecycler = findViewById(R.id.anime_recycler);
+        GridLayoutManager layoutManager = new GridLayoutManager(this, 2);
+        animeRecycler.setLayoutManager(layoutManager);
+
+    }
+
+    private void getAnime(){
         ExecutorService executor = Executors.newCachedThreadPool();
         Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -48,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
             mainHandler.post(() -> {
                 List<Anime> detailedAnime = new ArrayList<>();
                 AnimeAdapter adapter = new AnimeAdapter(this, detailedAnime);
-                recycler.setAdapter(adapter);
+                animeRecycler.setAdapter(adapter);
 
                 for (Anime currentAnime : anime) {
                     executor.execute(() -> {
