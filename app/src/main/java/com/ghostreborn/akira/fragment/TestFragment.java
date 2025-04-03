@@ -13,8 +13,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.ghostreborn.akira.R;
-import com.ghostreborn.akira.allAnime.AllAnimeDetails;
-import com.ghostreborn.akira.model.Anime;
+import com.ghostreborn.akira.allAnime.AllAnimeStream;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,7 +41,9 @@ public class TestFragment extends Fragment {
 
     private void connectAllAnime() {
 
-        String rawJSON = new AllAnimeDetails().animeDetails(new Anime("ju2pgynxn9o9DZvse")).getAnimeName();
+        AllAnimeStream allAnimeStream = new AllAnimeStream();
+
+        String rawJSON = allAnimeStream.serverUrls("ReooPAxPMsHM4KPMY", "1").toString();
         mainHandler.post(() -> testText.setText(rawJSON));
     }
 
