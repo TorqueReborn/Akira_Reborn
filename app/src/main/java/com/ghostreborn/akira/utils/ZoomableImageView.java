@@ -7,6 +7,7 @@ import android.graphics.PointF;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
+import android.view.ViewConfiguration;
 import android.view.ViewTreeObserver;
 
 import androidx.appcompat.widget.AppCompatImageView;
@@ -28,6 +29,9 @@ public class ZoomableImageView extends AppCompatImageView {
     private int viewWidth, viewHeight;
     private float originalWidth, originalHeight;
 
+    private boolean isClick;
+    private int touchSlop;
+
     public ZoomableImageView(Context context) {
         super(context);
         init(context);
@@ -47,10 +51,14 @@ public class ZoomableImageView extends AppCompatImageView {
         setScaleType(ScaleType.MATRIX);
         setImageMatrix(matrix);
         scaleGestureDetector = new ScaleGestureDetector(context, new ScaleListener());
+        touchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
 
         setOnTouchListener((v, event) -> {
             handleTouch(event);
             scaleGestureDetector.onTouchEvent(event);
+            if (isClick && event.getAction() == MotionEvent.ACTION_UP) {
+                v.performClick();
+            }
             return true;
         });
 
@@ -91,6 +99,7 @@ public class ZoomableImageView extends AppCompatImageView {
                 savedMatrix.set(matrix);
                 lastTouch.set(event.getX(), event.getY());
                 mode = DRAG;
+                isClick = true;
                 break;
             case MotionEvent.ACTION_POINTER_DOWN:
                 oldDist = spacing(event);
@@ -98,6 +107,7 @@ public class ZoomableImageView extends AppCompatImageView {
                     savedMatrix.set(matrix);
                     midPoint(lastTouch, event);
                     mode = ZOOM;
+                    isClick = false;
                 }
                 break;
             case MotionEvent.ACTION_UP:
@@ -109,6 +119,9 @@ public class ZoomableImageView extends AppCompatImageView {
                     matrix.set(savedMatrix);
                     matrix.postTranslate(event.getX() - lastTouch.x, event.getY() - lastTouch.y);
                     fixTranslation();
+                    if (isClick && (Math.abs(event.getX() - lastTouch.x) > touchSlop || Math.abs(event.getY() - lastTouch.y) > touchSlop)) {
+                        isClick = false;
+                    }
                 } else if (mode == ZOOM) {
                     float newDist = spacing(event);
                     if (newDist > 10f) {
