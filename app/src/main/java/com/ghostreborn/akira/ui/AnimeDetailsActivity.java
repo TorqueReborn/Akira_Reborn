@@ -1,8 +1,10 @@
 package com.ghostreborn.akira.ui;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -55,6 +57,9 @@ public class AnimeDetailsActivity extends AppCompatActivity {
                 TextView animeDescription = findViewById(R.id.animeDescription);
                 ImageView animeImage = findViewById(R.id.animeImage);
                 ImageView animeBanner = findViewById(R.id.animeBanner);
+                Button watchButton = findViewById(R.id.watch_button);
+
+                watchButton.setOnClickListener(v -> startActivity(new Intent(this, PlayActivity.class)));
 
                 assert animeDetails != null;
                 EpisodeAdapter adapter = new EpisodeAdapter(this, animeDetails.getAnimeEpisodes(), 5);
