@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.ghostreborn.akira.R;
-import com.ghostreborn.akira.adapter.EpisodeAdapter;
+import com.ghostreborn.akira.adapter.ChapterAdapter;
 
 import java.util.ArrayList;
 
@@ -35,17 +35,17 @@ public class ChaptersActivity extends AppCompatActivity {
         // Reverse the array
         ArrayList<String> reversedChapters = new ArrayList<>();
         assert chapters != null;
-        for(int i = chapters.size()-1; i>=0; i--){
+        for (int i = chapters.size() - 1; i >= 0; i--) {
             reversedChapters.add(chapters.get(i));
         }
 
-        RecyclerView episodeRecycler = findViewById(R.id.chapter_recycler);
+        RecyclerView chapterRecycler = findViewById(R.id.chapter_recycler);
         GridLayoutManager manager = new GridLayoutManager(this, 5);
-        episodeRecycler.setLayoutManager(manager);
+        chapterRecycler.setLayoutManager(manager);
 
         ProgressBar loadingProgress = findViewById(R.id.loadingProgress);
 
-        EpisodeAdapter adapter = new EpisodeAdapter(this, mangaID, reversedChapters, chapters.size(), loadingProgress);
-        episodeRecycler.setAdapter(adapter);
+        ChapterAdapter adapter = new ChapterAdapter(this, mangaID, reversedChapters, chapters.size(), loadingProgress);
+        chapterRecycler.setAdapter(adapter);
     }
 }

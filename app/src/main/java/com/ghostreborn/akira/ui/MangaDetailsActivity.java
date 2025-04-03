@@ -47,7 +47,7 @@ public class MangaDetailsActivity extends AppCompatActivity {
         ExecutorService executor = Executors.newCachedThreadPool();
         Handler mainHandler = new Handler(Looper.getMainLooper());
 
-        RecyclerView episodeRecycler = findViewById(R.id.mangaRecycler);
+        RecyclerView episodeRecycler = findViewById(R.id.chapterRecycler);
         LinearLayoutManager manager = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
         episodeRecycler.setLayoutManager(manager);
 

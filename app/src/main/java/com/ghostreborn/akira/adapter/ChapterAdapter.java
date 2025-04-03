@@ -14,8 +14,8 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.ghostreborn.akira.R;
-import com.ghostreborn.akira.allAnime.AllAnimeStream;
-import com.ghostreborn.akira.ui.PlayActivity;
+import com.ghostreborn.akira.allManga.AllMangaRead;
+import com.ghostreborn.akira.ui.ReadActivity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,11 +51,21 @@ public class ChapterAdapter extends RecyclerView.Adapter<ChapterAdapter.ViewHold
 
     @Override
     public void onBindViewHolder(@NonNull ChapterAdapter.ViewHolder holder, int position) {
-        if(chapters != null && position < chapters.size()){
+        if (chapters != null && position < chapters.size()) {
             holder.chapterNumber.setText(chapters.get(position));
         }
         holder.itemView.setOnClickListener(v -> {
             loadingProgress.setVisibility(View.VISIBLE);
+            executor.execute(() -> {
+                assert chapters != null;
+                ArrayList<String> thumbnails = new AllMangaRead().getChapters(id, chapters.get(position));
+                mainHandler.post(() -> {
+                    Intent intent = new Intent(context, ReadActivity.class);
+                    intent.putStringArrayListExtra("MANGA_THUMBNAILS", thumbnails);
+                    context.startActivity(intent);
+                    loadingProgress.setVisibility(View.GONE);
+                });
+            });
         });
     }
 
