@@ -24,7 +24,7 @@ public class AllAnimeDetails {
     private String details(String id){
         String variables = "\"showId\":\"" + id + "\"";
         String queryTypes = "$showId:String!";
-        String query = "show(_id:$showId){englishName,thumbnail,lastEpisodeInfo,rating,status}";
+        String query = "show(_id:$showId){name, englishName,thumbnail,lastEpisodeInfo,rating,status}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
@@ -40,6 +40,11 @@ public class AllAnimeDetails {
                     .getJSONObject("data")
                     .getJSONObject("show");
             name = show.getString("englishName");
+
+            if(name.equals("null")){
+                name = show.getString("name");
+            }
+
             thumbnail = show.getString("thumbnail");
             episodes = show.getJSONObject("lastEpisodeInfo")
                     .getJSONObject("sub")
