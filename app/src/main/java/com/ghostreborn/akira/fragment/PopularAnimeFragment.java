@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.SearchView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -18,6 +19,7 @@ import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.adapter.AnimeAdapter;
 import com.ghostreborn.akira.allAnime.AllAnimeDetails;
 import com.ghostreborn.akira.allAnime.AllAnimeQueryPopular;
+import com.ghostreborn.akira.allAnime.AllAnimeSearch;
 import com.ghostreborn.akira.model.Anime;
 import com.ghostreborn.akira.ui.NoNetworkActivity;
 import com.ghostreborn.akira.utils.MiscUtils;
@@ -51,6 +53,43 @@ public class PopularAnimeFragment extends Fragment {
         animeRecycler = view.findViewById(R.id.anime_recycler);
         GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);
         animeRecycler.setLayoutManager(layoutManager);
+
+        SearchView searchView = view.findViewById(R.id.searchView);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                ExecutorService executor = Executors.newCachedThreadPool();
+                Handler mainHandler = new Handler(Looper.getMainLooper());
+
+                executor.execute(() -> {
+                    List<Anime> anime = new AllAnimeSearch().search(query);
+
+                    mainHandler.post(() -> {
+                        List<Anime> detailedAnime = new ArrayList<>();
+                        AnimeAdapter adapter = new AnimeAdapter(requireContext(), detailedAnime);
+                        animeRecycler.setAdapter(adapter);
+
+                        for (Anime currentAnime : anime) {
+                            executor.execute(() -> {
+                                Anime detailed = new AllAnimeDetails().animeDetails(currentAnime);
+                                mainHandler.post(() -> {
+                                    detailedAnime.add(detailed);
+                                    adapter.notifyItemInserted(detailedAnime.size() - 1);
+                                });
+                            });
+                        }
+                    });
+                });
+                searchView.clearFocus();
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                return false;
+            }
+        });
+
     }
 
     private void getAnime() {
