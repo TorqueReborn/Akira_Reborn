@@ -32,7 +32,7 @@ public class AllAnimeFullDetails {
     private String full(String id) {
         String variables = "\"showId\":\"" + id + "\"";
         String queryTypes = "$showId:String!";
-        String query = "show(_id:$showId){englishName,description,thumbnail,banner,availableEpisodesDetail}";
+        String query = "show(_id:$showId){englishName,description,thumbnail,banner,availableEpisodesDetail,relatedShows}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
@@ -47,6 +47,8 @@ public class AllAnimeFullDetails {
         String description = "";
         String thumbnail = "";
         String banner = "";
+        String prequel = "";
+        String sequel = "";
         ArrayList<String> episodes = new ArrayList<>();
 
         try {
@@ -65,6 +67,18 @@ public class AllAnimeFullDetails {
                 episodes.add(sub.getString(i));
             }
 
+            JSONArray relatedShows = show.getJSONArray("relatedShows");
+            for (int i = 0; i < relatedShows.length(); i++) {
+                JSONObject related = relatedShows.getJSONObject(i);
+                String relation = related.optString("relation");
+                if ("prequel".equals(relation)) {
+                    prequel = related.optString("showId");
+                }
+                if ("sequel".equals(relation)) {
+                    sequel = related.optString("showId");
+                }
+            }
+
             // thumbnail fix
             if (!thumbnail.contains("https")) {
                 thumbnail = "https://wp.youtube-anime.com/aln.youtube-anime.com/" + thumbnail;
@@ -73,7 +87,7 @@ public class AllAnimeFullDetails {
         } catch (JSONException e) {
             Log.e("TAG", e.toString());
         }
-        return new AnimeDetails(anime, description, banner, thumbnail, episodes);
+        return new AnimeDetails(anime, description, banner, thumbnail, prequel, sequel,episodes);
     }
 
 }

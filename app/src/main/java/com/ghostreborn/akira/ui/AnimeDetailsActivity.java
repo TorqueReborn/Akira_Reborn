@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -55,23 +56,44 @@ public class AnimeDetailsActivity extends AppCompatActivity {
                 if (animeDetails == null) {
                     finish();
                 }
+
+                assert animeDetails != null;
+
                 TextView animeName = findViewById(R.id.animeName);
                 TextView animeDescription = findViewById(R.id.animeDescription);
                 ImageView animeImage = findViewById(R.id.animeImage);
                 ImageView animeBanner = findViewById(R.id.animeBanner);
                 Button watchButton = findViewById(R.id.watch_button);
+                Button animePrequel = findViewById(R.id.animePrequel);
+                Button animeSequel = findViewById(R.id.animeSequel);
                 TextView moreButton = findViewById(R.id.more_button);
+
+                if (!animeDetails.getAnimePrequel().isEmpty()) {
+                    animePrequel.setVisibility(View.VISIBLE);
+                    animePrequel.setOnClickListener(v -> {
+                        Intent intent = new Intent(this, AnimeDetailsActivity.class);
+                        intent.putExtra("ANIME_ID", animeDetails.getAnimePrequel());
+                        startActivity(intent);
+                    });
+                }
+
+                if (!animeDetails.getAnimeSequel().isEmpty()) {
+                    animeSequel.setVisibility(View.VISIBLE);
+                    animePrequel.setOnClickListener(v -> {
+                        Intent intent = new Intent(this, AnimeDetailsActivity.class);
+                        intent.putExtra("ANIME_ID", animeDetails.getAnimeSequel());
+                        startActivity(intent);
+                    });
+                }
 
                 moreButton.setOnClickListener(v -> {
                     Intent intent = new Intent(this, EpisodesActivity.class);
-                    assert animeDetails != null;
                     intent.putExtra("ANIME_ID", animeID);
                     intent.putStringArrayListExtra("EPISODE_LIST", animeDetails.getAnimeEpisodes());
                     startActivity(intent);
                 });
 
                 watchButton.setOnClickListener(v -> executor.execute(() -> {
-                    assert animeDetails != null;
                     ArrayList<String> urls = new AllAnimeStream().serverUrls(animeID, animeDetails.getAnimeEpisodes().get(animeDetails.getAnimeEpisodes().size()-1));
                     mainHandler.post(() -> {
                         Intent intent = new Intent(this, PlayActivity.class);
@@ -80,7 +102,6 @@ public class AnimeDetailsActivity extends AppCompatActivity {
                     });
                 }));
 
-                assert animeDetails != null;
                 EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, animeDetails.getAnimeEpisodes(), 5);
                 episodeRecycler.setAdapter(adapter);
 
