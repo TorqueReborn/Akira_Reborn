@@ -16,7 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.model.Manga;
-import com.ghostreborn.akira.ui.AnimeDetailsActivity;
+import com.ghostreborn.akira.ui.MangaDetailsActivity;
 
 import java.util.List;
 
@@ -25,7 +25,7 @@ public class MangaAdapter extends RecyclerView.Adapter<MangaAdapter.ViewHolder> 
     private final List<Manga> mangas;
     private final Context context;
 
-    public MangaAdapter(Context context, List<Manga> mangas){
+    public MangaAdapter(Context context, List<Manga> mangas) {
         this.context = context;
         this.mangas = mangas;
     }
@@ -56,7 +56,7 @@ public class MangaAdapter extends RecyclerView.Adapter<MangaAdapter.ViewHolder> 
         holder.mangaRating.setText(manga.getMangaRating());
         holder.mangaStatus.setText(manga.getMangaStatus());
         holder.itemView.setOnClickListener(v -> {
-            Intent intent = new Intent(context, AnimeDetailsActivity.class);
+            Intent intent = new Intent(context, MangaDetailsActivity.class);
             intent.putExtra("MANGA_ID", manga.getId());
             context.startActivity(intent);
         });

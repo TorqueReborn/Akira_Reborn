@@ -32,7 +32,7 @@ public class AllAnimeFullDetails {
     private String full(String id) {
         String variables = "\"showId\":\"" + id + "\"";
         String queryTypes = "$showId:String!";
-        String query = "show(_id:$showId){englishName,description,thumbnail,banner,availableEpisodesDetail,relatedShows}";
+        String query = "show(_id:$showId){name,englishName,description,thumbnail,banner,availableEpisodesDetail,relatedShows}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
@@ -57,6 +57,11 @@ public class AllAnimeFullDetails {
                     .getJSONObject("show");
 
             anime = show.getString("englishName");
+
+            if(anime.equals("null")){
+                anime = show.getString("name");
+            }
+
             description = String.valueOf(Html.fromHtml(show.getString("description"), Html.FROM_HTML_MODE_LEGACY));
             thumbnail = show.getString("thumbnail");
             banner = show.getString("banner");

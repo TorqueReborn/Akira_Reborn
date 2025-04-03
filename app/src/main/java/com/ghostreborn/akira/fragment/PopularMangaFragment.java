@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.SearchView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -18,6 +19,7 @@ import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.adapter.MangaAdapter;
 import com.ghostreborn.akira.allManga.AllMangaDetails;
 import com.ghostreborn.akira.allManga.AllMangaQueryPopular;
+import com.ghostreborn.akira.allManga.AllMangaSearch;
 import com.ghostreborn.akira.model.Manga;
 import com.ghostreborn.akira.ui.NoNetworkActivity;
 import com.ghostreborn.akira.utils.MiscUtils;
@@ -51,6 +53,42 @@ public class PopularMangaFragment extends Fragment {
         mangaRecycler = view.findViewById(R.id.manga_recycler);
         GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);
         mangaRecycler.setLayoutManager(layoutManager);
+
+        SearchView searchView = view.findViewById(R.id.manga_search_view);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                ExecutorService executor = Executors.newCachedThreadPool();
+                Handler mainHandler = new Handler(Looper.getMainLooper());
+
+                executor.execute(() -> {
+                    List<Manga> mangas = new AllMangaSearch().search(query);
+
+                    mainHandler.post(() -> {
+                        List<Manga> detailedManga = new ArrayList<>();
+                        MangaAdapter adapter = new MangaAdapter(requireContext(), detailedManga);
+                        mangaRecycler.setAdapter(adapter);
+
+                        for (Manga currentManga : mangas) {
+                            executor.execute(() -> {
+                                Manga detailed = new AllMangaDetails().mangaDetails(currentManga);
+                                mainHandler.post(() -> {
+                                    detailedManga.add(detailed);
+                                    adapter.notifyItemInserted(detailedManga.size() - 1);
+                                });
+                            });
+                        }
+                    });
+                });
+                searchView.clearFocus();
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                return false;
+            }
+        });
 
     }
 
