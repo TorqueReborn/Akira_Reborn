@@ -1,6 +1,7 @@
 package com.ghostreborn.akira.ui;
 
 import android.os.Bundle;
+import android.widget.ProgressBar;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -42,7 +43,9 @@ public class EpisodesActivity extends AppCompatActivity {
         GridLayoutManager manager = new GridLayoutManager(this, 5);
         episodeRecycler.setLayoutManager(manager);
 
-        EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, reversedEpisodes, episodes.size());
+        ProgressBar loadingProgress = findViewById(R.id.loadingProgress);
+
+        EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, reversedEpisodes, episodes.size(), loadingProgress);
         episodeRecycler.setAdapter(adapter);
 
     }

@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
@@ -67,6 +68,7 @@ public class AnimeDetailsActivity extends AppCompatActivity {
                 Button animePrequel = findViewById(R.id.animePrequel);
                 Button animeSequel = findViewById(R.id.animeSequel);
                 TextView moreButton = findViewById(R.id.more_button);
+                ProgressBar loadingProgress = findViewById(R.id.loading_progress);
 
                 if (!animeDetails.getAnimePrequel().isEmpty()) {
                     animePrequel.setVisibility(View.VISIBLE);
@@ -93,16 +95,20 @@ public class AnimeDetailsActivity extends AppCompatActivity {
                     startActivity(intent);
                 });
 
-                watchButton.setOnClickListener(v -> executor.execute(() -> {
-                    ArrayList<String> urls = new AllAnimeStream().serverUrls(animeID, animeDetails.getAnimeEpisodes().get(animeDetails.getAnimeEpisodes().size()-1));
-                    mainHandler.post(() -> {
-                        Intent intent = new Intent(this, PlayActivity.class);
-                        intent.putStringArrayListExtra("SERVER_URLS", urls);
-                        startActivity(intent);
+                watchButton.setOnClickListener(v -> {
+                    loadingProgress.setVisibility(View.VISIBLE);
+                    executor.execute(() -> {
+                        ArrayList<String> urls = new AllAnimeStream().serverUrls(animeID, animeDetails.getAnimeEpisodes().get(animeDetails.getAnimeEpisodes().size() - 1));
+                        mainHandler.post(() -> {
+                            Intent intent = new Intent(this, PlayActivity.class);
+                            intent.putStringArrayListExtra("SERVER_URLS", urls);
+                            startActivity(intent);
+                            loadingProgress.setVisibility(View.GONE);
+                        });
                     });
-                }));
+                });
 
-                EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, animeDetails.getAnimeEpisodes(), 5);
+                EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, animeDetails.getAnimeEpisodes(), 5, loadingProgress);
                 episodeRecycler.setAdapter(adapter);
 
                 animeName.setText(animeDetails.getAnimeName());
