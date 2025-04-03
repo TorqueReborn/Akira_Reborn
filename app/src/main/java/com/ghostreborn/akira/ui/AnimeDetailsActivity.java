@@ -23,6 +23,7 @@ import com.ghostreborn.akira.allAnime.AllAnimeFullDetails;
 import com.ghostreborn.akira.allAnime.AllAnimeStream;
 import com.ghostreborn.akira.model.AnimeDetails;
 
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -71,10 +72,10 @@ public class AnimeDetailsActivity extends AppCompatActivity {
 
                 watchButton.setOnClickListener(v -> executor.execute(() -> {
                     assert animeDetails != null;
-                    String url = new AllAnimeStream().serverUrls(animeID, animeDetails.getAnimeEpisodes().get(0)).get(0);
+                    ArrayList<String> urls = new AllAnimeStream().serverUrls(animeID, animeDetails.getAnimeEpisodes().get(animeDetails.getAnimeEpisodes().size()-1));
                     mainHandler.post(() -> {
                         Intent intent = new Intent(this, PlayActivity.class);
-                        intent.putExtra("SERVER_URL", url);
+                        intent.putStringArrayListExtra("SERVER_URLS", urls);
                         startActivity(intent);
                     });
                 }));

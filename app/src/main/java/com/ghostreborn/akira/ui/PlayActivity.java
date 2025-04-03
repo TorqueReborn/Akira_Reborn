@@ -68,8 +68,8 @@ public class PlayActivity extends AppCompatActivity {
         player = new ExoPlayer.Builder(this).build();
         playerView.setPlayer(player);
 
-//        Uri videoUri = Uri.parse(urls.get(currentIndex));
-        MediaItem mediaItem = MediaItem.fromUri(Uri.parse("https://repackager.wixmp.com/video.wixstatic.com/video/bd1bd7_43978885514d4ed5b048a2a7c84187c5/,480p,720p,1080p,/mp4/file.mp4.urlset/master.m3u8"));
+        Uri videoUri = Uri.parse(urls.get(currentIndex));
+        MediaItem mediaItem = MediaItem.fromUri(videoUri);
         player.setMediaItem(mediaItem);
         player.prepare();
         player.play();
