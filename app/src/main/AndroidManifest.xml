@@ -16,10 +16,10 @@
         android:theme="@style/Theme.Akira"
         tools:targetApi="31">
         <activity
-            android:name=".NoNetworkActivity"
-            android:exported="false" />
+            android:name=".ui.NoNetworkActivity"
+            android:exported="true" />
         <activity
-            android:name=".AnimeDetailsActivity"
+            android:name=".ui.AnimeDetailsActivity"
             android:exported="true" />
         <activity
             android:name=".MainActivity"

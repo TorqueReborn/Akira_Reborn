@@ -17,6 +17,7 @@ import com.ghostreborn.akira.adapter.AnimeAdapter;
 import com.ghostreborn.akira.allAnime.AllAnimeDetails;
 import com.ghostreborn.akira.allAnime.AllAnimeQueryPopular;
 import com.ghostreborn.akira.model.Anime;
+import com.ghostreborn.akira.ui.NoNetworkActivity;
 import com.ghostreborn.akira.utils.MiscUtils;
 
 import java.util.ArrayList;

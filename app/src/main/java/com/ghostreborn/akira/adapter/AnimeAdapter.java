@@ -14,7 +14,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
-import com.ghostreborn.akira.AnimeDetailsActivity;
+import com.ghostreborn.akira.ui.AnimeDetailsActivity;
 import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.model.Anime;
 

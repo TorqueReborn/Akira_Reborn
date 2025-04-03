@@ -1,4 +1,4 @@
-package com.ghostreborn.akira;
+package com.ghostreborn.akira.ui;
 
 import android.os.Bundle;
 import android.os.Handler;
@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.adapter.EpisodeAdapter;
 import com.ghostreborn.akira.allAnime.AllAnimeFullDetails;
 import com.ghostreborn.akira.model.AnimeDetails;
