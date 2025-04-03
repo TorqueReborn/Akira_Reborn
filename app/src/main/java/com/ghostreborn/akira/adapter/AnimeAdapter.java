@@ -57,7 +57,7 @@ public class AnimeAdapter extends RecyclerView.Adapter<AnimeAdapter.ViewHolder> 
         holder.animeStatus.setText(anime.getAnimeStatus());
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, AnimeDetailsActivity.class);
-            intent.putExtra("ANIME_ID", anime.get_id());
+            intent.putExtra("ANIME_ID", anime.getId());
             context.startActivity(intent);
         });
     }

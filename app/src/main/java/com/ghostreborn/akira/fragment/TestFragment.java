@@ -13,7 +13,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.ghostreborn.akira.R;
-import com.ghostreborn.akira.allAnime.AllAnimeSearch;
+import com.ghostreborn.akira.allManga.AllMangaDetails;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,9 +41,9 @@ public class TestFragment extends Fragment {
 
     private void connectAllAnime() {
 
-        AllAnimeSearch allAnimeSearch = new AllAnimeSearch();
+        AllMangaDetails allMangaDetails = new AllMangaDetails();
 
-        String rawJSON = allAnimeSearch.search("one").toString();
+        String rawJSON = allMangaDetails.details("vSd9Zw8P3erqLX6GM");
         mainHandler.post(() -> testText.setText(rawJSON));
     }
 

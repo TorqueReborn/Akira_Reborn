@@ -54,7 +54,7 @@ public class PopularAnimeFragment extends Fragment {
         GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);
         animeRecycler.setLayoutManager(layoutManager);
 
-        SearchView searchView = view.findViewById(R.id.searchView);
+        SearchView searchView = view.findViewById(R.id.anime_search_view);
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {

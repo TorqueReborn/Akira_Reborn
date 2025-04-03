@@ -29,7 +29,7 @@ public class AllAnimeDetails {
     }
 
     public Anime animeDetails(Anime anime){
-        String rawJSON = details(anime.get_id());
+        String rawJSON = details(anime.getId());
         String name = "";
         String thumbnail = "";
         String episodes = "";

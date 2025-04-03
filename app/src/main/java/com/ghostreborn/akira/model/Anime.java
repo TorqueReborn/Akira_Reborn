@@ -9,9 +9,7 @@ public class Anime {
     private String animeRating;
     private String animeStatus;
 
-    public Anime(
-            String _id
-    ){
+    public Anime(String _id) {
         this._id = _id;
     }
 
@@ -19,7 +17,11 @@ public class Anime {
         return animeName;
     }
 
-    public String get_id() {
+    public void setAnimeName(String animeName) {
+        this.animeName = animeName;
+    }
+
+    public String getId() {
         return _id;
     }
 
@@ -27,32 +29,28 @@ public class Anime {
         return animeImage;
     }
 
-    public String getAnimeEpisodes() {
-        return animeEpisodes;
-    }
-
-    public String getAnimeRating() {
-        return animeRating;
-    }
-
-    public String getAnimeStatus() {
-        return animeStatus;
-    }
-
-    public void setAnimeName(String animeName) {
-        this.animeName = animeName;
-    }
-
     public void setAnimeImage(String animeImage) {
         this.animeImage = animeImage;
+    }
+
+    public String getAnimeEpisodes() {
+        return animeEpisodes;
     }
 
     public void setAnimeEpisodes(String animeEpisodes) {
         this.animeEpisodes = animeEpisodes;
     }
 
+    public String getAnimeRating() {
+        return animeRating;
+    }
+
     public void setAnimeRating(String animeRating) {
         this.animeRating = animeRating;
+    }
+
+    public String getAnimeStatus() {
+        return animeStatus;
     }
 
     public void setAnimeStatus(String animeStatus) {
