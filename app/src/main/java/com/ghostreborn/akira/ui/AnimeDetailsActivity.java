@@ -20,6 +20,7 @@ import com.bumptech.glide.Glide;
 import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.adapter.EpisodeAdapter;
 import com.ghostreborn.akira.allAnime.AllAnimeFullDetails;
+import com.ghostreborn.akira.allAnime.AllAnimeStream;
 import com.ghostreborn.akira.model.AnimeDetails;
 
 import java.util.concurrent.ExecutorService;
@@ -50,7 +51,7 @@ public class AnimeDetailsActivity extends AppCompatActivity {
         executor.execute(() -> {
             AnimeDetails animeDetails = new AllAnimeFullDetails().fullDetails(animeID);
             mainHandler.post(() -> {
-                if (animeDetails == null){
+                if (animeDetails == null) {
                     finish();
                 }
                 TextView animeName = findViewById(R.id.animeName);
@@ -59,10 +60,18 @@ public class AnimeDetailsActivity extends AppCompatActivity {
                 ImageView animeBanner = findViewById(R.id.animeBanner);
                 Button watchButton = findViewById(R.id.watch_button);
 
-                watchButton.setOnClickListener(v -> startActivity(new Intent(this, PlayActivity.class)));
+                watchButton.setOnClickListener(v -> executor.execute(() -> {
+                    assert animeDetails != null;
+                    String url = new AllAnimeStream().serverUrls(animeID, animeDetails.getAnimeEpisodes().get(1)).get(0);
+                    mainHandler.post(() -> {
+                        Intent intent = new Intent(this, PlayActivity.class);
+                        intent.putExtra("SERVER_URL", url);
+                        startActivity(intent);
+                    });
+                }));
 
                 assert animeDetails != null;
-                EpisodeAdapter adapter = new EpisodeAdapter(this, animeDetails.getAnimeEpisodes(), 5);
+                EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, animeDetails.getAnimeEpisodes(), 5);
                 episodeRecycler.setAdapter(adapter);
 
                 animeName.setText(animeDetails.getAnimeName());

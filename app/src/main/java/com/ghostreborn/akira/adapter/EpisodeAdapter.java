@@ -1,6 +1,9 @@
 package com.ghostreborn.akira.adapter;
 
 import android.content.Context;
+import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,17 +13,26 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.ghostreborn.akira.R;
+import com.ghostreborn.akira.allAnime.AllAnimeStream;
+import com.ghostreborn.akira.ui.PlayActivity;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class EpisodeAdapter extends RecyclerView.Adapter<EpisodeAdapter.ViewHolder> {
 
     private final List<String> episodes;
     private final int limit;
     private final Context context;
+    private final String id;
 
-    public EpisodeAdapter(Context context, List<String> episodes, int limit) {
+    ExecutorService executor = Executors.newCachedThreadPool();
+    Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    public EpisodeAdapter(Context context, String id, List<String> episodes, int limit) {
         this.context = context;
+        this.id = id;
         this.episodes = episodes;
         this.limit = limit;
     }
@@ -38,6 +50,15 @@ public class EpisodeAdapter extends RecyclerView.Adapter<EpisodeAdapter.ViewHold
         if(episodes != null && position < episodes.size()){
             holder.episodeNumber.setText(episodes.get(position));
         }
+        holder.itemView.setOnClickListener(v -> executor.execute(()-> {
+            assert episodes != null;
+            String url = new AllAnimeStream().serverUrls(id, episodes.get(position)).get(0);
+            mainHandler.post(()-> {
+                Intent intent = new Intent(context, PlayActivity.class);
+                intent.putExtra("SERVER_URL", url);
+                context.startActivity(intent);
+            });
+        }));
     }
 
     @Override
