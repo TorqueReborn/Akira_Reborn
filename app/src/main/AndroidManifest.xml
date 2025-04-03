@@ -17,7 +17,7 @@
         tools:targetApi="31">
         <activity
             android:name=".ui.ReadActivity"
-            android:exported="false" />
+            android:exported="true" />
         <activity
             android:name=".ui.ChaptersActivity"
             android:exported="false" />
