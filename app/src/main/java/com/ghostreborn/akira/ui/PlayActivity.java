@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.ProgressBar;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
@@ -39,7 +38,6 @@ public class PlayActivity extends AppCompatActivity {
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private PlayerView playerView;
     private ExoPlayer player;
-    private ProgressBar progressBar;
     private int currentIndex = 0;
     private Timer timer;
 
@@ -94,7 +92,6 @@ public class PlayActivity extends AppCompatActivity {
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
         playerView = findViewById(R.id.player_view);
-        progressBar = findViewById(R.id.progress_bar);
 
         initializePlayer();
         setFullscreen();
@@ -123,17 +120,8 @@ public class PlayActivity extends AppCompatActivity {
         MediaItem mediaItem = MediaItem.fromUri(videoUri);
         player.setMediaItem(mediaItem);
         player.prepare();
-        player.play();
 
         player.addListener(new Player.Listener() {
-            @Override
-            public void onPlaybackStateChanged(int playbackState) {
-                if (playbackState == Player.STATE_BUFFERING) {
-                    progressBar.setVisibility(View.VISIBLE);
-                } else if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
-                    progressBar.setVisibility(View.GONE);
-                }
-            }
 
             @Override
             public void onTracksChanged(@NonNull Tracks tracks) {
@@ -168,14 +156,6 @@ public class PlayActivity extends AppCompatActivity {
                 }
             }
         });
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-        if (player != null) {
-            player.play();
-        }
     }
 
     @Override
