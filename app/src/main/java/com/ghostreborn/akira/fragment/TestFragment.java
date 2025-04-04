@@ -13,7 +13,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.ghostreborn.akira.R;
-import com.ghostreborn.akira.aniskip.AniSkip;
+import com.ghostreborn.akira.allAnime.AllAnimeFullDetails;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,7 +41,7 @@ public class TestFragment extends Fragment {
 
     private void connectAllAnime() {
 
-        String rawJSON = new AniSkip().startEndSkip("21", "12").get("endTime") + "";
+        String rawJSON = new AllAnimeFullDetails().full("ReooPAxPMsHM4KPMY");
         mainHandler.post(() -> testText.setText(rawJSON));
     }
 

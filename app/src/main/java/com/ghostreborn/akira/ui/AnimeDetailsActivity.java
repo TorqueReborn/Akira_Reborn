@@ -91,6 +91,7 @@ public class AnimeDetailsActivity extends AppCompatActivity {
                 moreButton.setOnClickListener(v -> {
                     Intent intent = new Intent(this, EpisodesActivity.class);
                     intent.putExtra("ANIME_ID", animeID);
+                    intent.putExtra("ANILIST_ID", animeDetails.getAniListId());
                     intent.putStringArrayListExtra("EPISODE_LIST", animeDetails.getAnimeEpisodes());
                     startActivity(intent);
                 });
@@ -101,6 +102,7 @@ public class AnimeDetailsActivity extends AppCompatActivity {
                         ArrayList<String> urls = new AllAnimeStream().serverUrls(animeID, animeDetails.getAnimeEpisodes().get(animeDetails.getAnimeEpisodes().size() - 1));
                         mainHandler.post(() -> {
                             Intent intent = new Intent(this, PlayActivity.class);
+                            intent.putExtra("EPISODE_NUMBER", "1");
                             intent.putStringArrayListExtra("SERVER_URLS", urls);
                             startActivity(intent);
                             loadingProgress.setVisibility(View.GONE);
@@ -108,7 +110,7 @@ public class AnimeDetailsActivity extends AppCompatActivity {
                     });
                 });
 
-                EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, animeDetails.getAnimeEpisodes(), 5, loadingProgress);
+                EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, animeDetails.getAniListId(),animeDetails.getAnimeEpisodes(), 5, loadingProgress);
                 episodeRecycler.setAdapter(adapter);
 
                 animeName.setText(animeDetails.getAnimeName());

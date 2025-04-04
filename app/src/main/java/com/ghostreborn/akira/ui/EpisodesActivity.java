@@ -28,14 +28,14 @@ public class EpisodesActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
-
         String animeID = getIntent().getStringExtra("ANIME_ID");
+        String aniListId = getIntent().getStringExtra("ANILIST_ID");
         ArrayList<String> episodes = getIntent().getStringArrayListExtra("EPISODE_LIST");
 
         // Reverse the array
         ArrayList<String> reversedEpisodes = new ArrayList<>();
         assert episodes != null;
-        for(int i = episodes.size()-1; i>=0; i--){
+        for (int i = episodes.size() - 1; i >= 0; i--) {
             reversedEpisodes.add(episodes.get(i));
         }
 
@@ -45,7 +45,7 @@ public class EpisodesActivity extends AppCompatActivity {
 
         ProgressBar loadingProgress = findViewById(R.id.loadingProgress);
 
-        EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, reversedEpisodes, episodes.size(), loadingProgress);
+        EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, aniListId, reversedEpisodes, episodes.size(), loadingProgress);
         episodeRecycler.setAdapter(adapter);
 
     }

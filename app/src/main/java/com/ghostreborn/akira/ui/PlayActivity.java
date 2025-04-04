@@ -41,6 +41,8 @@ import java.util.concurrent.TimeUnit;
 public class PlayActivity extends AppCompatActivity {
 
     private Timer timer;
+    private String aniListId = "";
+    private String episodeNumber = "";
     private int currentIndex = 0;
     private ArrayList<String> urls = new ArrayList<>();
     private final List<Pair<Long, Long>> highlightIntervals = new ArrayList<>();
@@ -102,6 +104,8 @@ public class PlayActivity extends AppCompatActivity {
         highlightedProgressbar = findViewById(R.id.highlighted_progress);
 
         urls = getIntent().getStringArrayListExtra("SERVER_URLS");
+        episodeNumber = getIntent().getStringExtra("EPISODE_NUMBER");
+        aniListId = getIntent().getStringExtra("ANILIST_ID");
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
@@ -142,24 +146,26 @@ public class PlayActivity extends AppCompatActivity {
             @Override
             public void onTracksChanged(@NonNull Tracks tracks) {
                 executorService.execute(() -> {
-                    Map<String, Long> skip = new AniSkip().startEndSkip("58567", "1");
+                    if(episodeNumber != null && aniListId != null){
+                        Map<String, Long> skip = new AniSkip().startEndSkip(aniListId, episodeNumber);
 
-                    List<Pair<Long, Long>> timePairs = new ArrayList<>();
-                    Long edStart = skip.get("ED_startTime");
-                    Long edEnd = skip.get("ED_endTime");
-                    if (edStart != null && edEnd != null) {
-                        timePairs.add(new Pair<>(edStart, edEnd));
+                        List<Pair<Long, Long>> timePairs = new ArrayList<>();
+                        Long edStart = skip.get("ED_startTime");
+                        Long edEnd = skip.get("ED_endTime");
+                        if (edStart != null && edEnd != null) {
+                            timePairs.add(new Pair<>(edStart, edEnd));
+                        }
+
+                        Long opStart = skip.get("OP_startTime");
+                        Long opEnd = skip.get("OP_endTime");
+                        if (opStart != null && opEnd != null) {
+                            timePairs.add(new Pair<>(opStart, opEnd));
+                        }
+
+                        highlightIntervals.addAll(timePairs);
+                        startRecurringTask();
+                        mainHandler.post(() -> highlightedProgressbar.setDurationAndHighlightIntervals(player.getDuration(), highlightIntervals));
                     }
-
-                    Long opStart = skip.get("OP_startTime");
-                    Long opEnd = skip.get("OP_endTime");
-                    if (opStart != null && opEnd != null) {
-                        timePairs.add(new Pair<>(opStart, opEnd));
-                    }
-
-                    highlightIntervals.addAll(timePairs);
-                    startRecurringTask();
-                    mainHandler.post(() -> highlightedProgressbar.setDurationAndHighlightIntervals(player.getDuration(), highlightIntervals));
                 });
                 TrackGroup mediaTrackGroup = tracks.getGroups().get(0).getMediaTrackGroup();
                 player.setTrackSelectionParameters(

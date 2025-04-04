@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 public class AnimeDetails {
 
+    private final String aniListId;
     private final String animeName;
     private final String animeDescription;
     private final String animeBanner;
@@ -13,6 +14,7 @@ public class AnimeDetails {
     private final ArrayList<String> animeEpisodes;
 
     public AnimeDetails(
+            String aniListId,
             String animeName,
             String animeDescription,
             String animeBanner,
@@ -21,6 +23,7 @@ public class AnimeDetails {
             String animeSequel,
             ArrayList<String> animeEpisodes
     ){
+        this.aniListId = aniListId;
         this.animeName = animeName;
         this.animeDescription = animeDescription;
         this.animeBanner = animeBanner;
@@ -28,6 +31,10 @@ public class AnimeDetails {
         this.animePrequel = animePrequel;
         this.animeSequel = animeSequel;
         this.animeEpisodes = animeEpisodes;
+    }
+
+    public String getAniListId() {
+        return aniListId;
     }
 
     public String getAnimeName() {

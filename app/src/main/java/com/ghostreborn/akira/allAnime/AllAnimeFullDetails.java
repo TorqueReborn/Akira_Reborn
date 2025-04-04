@@ -29,10 +29,10 @@ public class AllAnimeFullDetails {
         return "{}";
     }
 
-    private String full(String id) {
+    public String full(String id) {
         String variables = "\"showId\":\"" + id + "\"";
         String queryTypes = "$showId:String!";
-        String query = "show(_id:$showId){name,englishName,description,thumbnail,banner,availableEpisodesDetail,relatedShows}";
+        String query = "show(_id:$showId){aniListId,name,englishName,description,thumbnail,banner,availableEpisodesDetail,relatedShows}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
@@ -43,6 +43,7 @@ public class AllAnimeFullDetails {
             return null;
         }
 
+        String aniListId = "";
         String anime = "";
         String description = "";
         String thumbnail = "";
@@ -55,6 +56,8 @@ public class AllAnimeFullDetails {
             JSONObject show = new JSONObject(rawJSON)
                     .getJSONObject("data")
                     .getJSONObject("show");
+
+            aniListId = show.getString("aniListId");
 
             anime = show.getString("englishName");
 
@@ -92,7 +95,7 @@ public class AllAnimeFullDetails {
         } catch (JSONException e) {
             Log.e("TAG", e.toString());
         }
-        return new AnimeDetails(anime, description, banner, thumbnail, prequel, sequel,episodes);
+        return new AnimeDetails(aniListId, anime, description, banner, thumbnail, prequel, sequel,episodes);
     }
 
 }
