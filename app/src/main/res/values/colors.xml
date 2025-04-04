@@ -7,4 +7,6 @@
     <color name="default_font_color">#fff</color>
     <color name="default_background_color">#292929</color>
     <color name="dark_background_color">#111111</color>
+
+    <color name="highlight_color">#D11B1B</color>
 </resources>

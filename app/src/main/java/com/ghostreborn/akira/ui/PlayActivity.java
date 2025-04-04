@@ -4,6 +4,7 @@ import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Pair;
 import android.view.View;
 import android.view.WindowManager;
 
@@ -23,8 +24,10 @@ import androidx.media3.ui.PlayerView;
 
 import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.aniskip.AniSkip;
+import com.ghostreborn.akira.utils.HighlightedProgressbar;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -40,6 +43,8 @@ public class PlayActivity extends AppCompatActivity {
     private ExoPlayer player;
     private int currentIndex = 0;
     private Timer timer;
+    private final List<Pair<Long, Long>> highlightIntervals = new ArrayList<>();
+    private HighlightedProgressbar highlightedProgressbar;
 
     public void startRecurringTask(Long startTime, Long endTime) {
         timer = new Timer();
@@ -86,6 +91,13 @@ public class PlayActivity extends AppCompatActivity {
             return insets;
         });
 
+        highlightedProgressbar = findViewById(R.id.highlighted_progress);
+        highlightIntervals.add(new Pair<>(10000L, 25000L));
+        highlightIntervals.add(new Pair<>(40000L, 55000L));
+        highlightIntervals.add(new Pair<>(70000L, 85000L));
+        highlightedProgressbar.setDurationAndHighlightIntervals(1325633, highlightIntervals);
+
+
 //        urls = getIntent().getStringArrayListExtra("SERVER_URLS");
         urls.add("https://myanime.sharepoint.com/sites/chartlousty/_layouts/15/download.aspx?share=ETxO_oqjXidIrtr9bOw6h60BA5U7QU859SixO8VruwX5ZA");
 
@@ -120,6 +132,8 @@ public class PlayActivity extends AppCompatActivity {
         MediaItem mediaItem = MediaItem.fromUri(videoUri);
         player.setMediaItem(mediaItem);
         player.prepare();
+
+        playerView.setControllerVisibilityListener((PlayerView.ControllerVisibilityListener) this::animateHighlightedProgressBar);
 
         player.addListener(new Player.Listener() {
 
@@ -156,6 +170,19 @@ public class PlayActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    private void animateHighlightedProgressBar(int visibility) {
+        float targetTranslationY = 0;
+        if (visibility == View.GONE) {
+            targetTranslationY = playerView.findViewById(R.id.exo_progress).getHeight();
+        }
+
+        highlightedProgressbar.animate()
+                .translationY(targetTranslationY)
+                .setDuration(300)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                .start();
     }
 
     @Override
