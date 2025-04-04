@@ -10,9 +10,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:resize_mode="fit"
-        app:show_buffering="when_playing"
-        app:show_subtitle_button="true"
-        app:surface_type="surface_view" />
+        app:show_buffering="always"
+        app:use_controller="true"
+        app:controller_layout_id="@layout/player_layout"/>
 
     <ProgressBar
         android:id="@+id/progress_bar"
