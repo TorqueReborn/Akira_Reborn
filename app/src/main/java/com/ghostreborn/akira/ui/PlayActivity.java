@@ -3,8 +3,7 @@ package com.ghostreborn.akira.ui;
 import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ProgressBar;
@@ -27,19 +26,56 @@ import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.aniskip.AniSkip;
 
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class PlayActivity extends AppCompatActivity {
 
     private final ArrayList<String> urls = new ArrayList<>();
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private PlayerView playerView;
     private ExoPlayer player;
     private ProgressBar progressBar;
     private int currentIndex = 0;
+    private Timer timer;
 
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    public void startRecurringTask(Long startTime, Long endTime) {
+        timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                checkDuration(startTime, endTime);
+            }
+        }, 1, TimeUnit.SECONDS.toMillis(2));
+    }
+
+    public void stopRecurringTask() {
+        if (timer != null) {
+            timer.cancel();
+            timer.purge();
+            timer = null;
+        }
+    }
+
+    private void checkDuration(Long startTime, Long endTime) {
+
+        if (endTime != 0) {
+            PlayActivity activity = this;
+            activity.runOnUiThread(() -> {
+                long playerDuration = player.getCurrentPosition();
+                Log.e("TAG", playerDuration + " " + startTime);
+                if (playerDuration >= startTime && playerDuration <= endTime) {
+                    player.seekTo(endTime);
+                    stopRecurringTask();
+                }
+            });
+        }
+    }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,7 +88,6 @@ public class PlayActivity extends AppCompatActivity {
             return insets;
         });
 
-
 //        urls = getIntent().getStringArrayListExtra("SERVER_URLS");
         urls.add("https://myanime.sharepoint.com/sites/chartlousty/_layouts/15/download.aspx?share=ETxO_oqjXidIrtr9bOw6h60BA5U7QU859SixO8VruwX5ZA");
 
@@ -63,6 +98,12 @@ public class PlayActivity extends AppCompatActivity {
 
         initializePlayer();
         setFullscreen();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopRecurringTask();
     }
 
     private void setFullscreen() {
@@ -97,9 +138,11 @@ public class PlayActivity extends AppCompatActivity {
             @Override
             public void onTracksChanged(@NonNull Tracks tracks) {
                 executorService.execute(() -> {
-                    Long endTime = new AniSkip().startSkip("58567", "1").get("endTime");
-                    long skip = endTime!=null ? endTime : 0;
-                    mainHandler.post(() -> player.seekTo(skip));
+                    Map<String, Long> skip = new AniSkip().startSkip("58567", "1");
+                    Long startTime = skip.get("startTime");
+                    Long endTime = skip.get("endTime");
+                    startRecurringTask(startTime, endTime);
+//                    mainHandler.post(() -> player.seekTo(skip));
                 });
                 player.setTrackSelectionParameters(
                         player
