@@ -3,6 +3,8 @@ package com.ghostreborn.akira.ui;
 import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.util.Pair;
 import android.view.View;
@@ -45,6 +47,7 @@ public class PlayActivity extends AppCompatActivity {
     private Timer timer;
     private final List<Pair<Long, Long>> highlightIntervals = new ArrayList<>();
     private HighlightedProgressbar highlightedProgressbar;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public void startRecurringTask(Long startTime, Long endTime) {
         timer = new Timer();
@@ -92,11 +95,6 @@ public class PlayActivity extends AppCompatActivity {
         });
 
         highlightedProgressbar = findViewById(R.id.highlighted_progress);
-        highlightIntervals.add(new Pair<>(10000L, 25000L));
-        highlightIntervals.add(new Pair<>(40000L, 55000L));
-        highlightIntervals.add(new Pair<>(70000L, 85000L));
-        highlightedProgressbar.setDurationAndHighlightIntervals(1325633, highlightIntervals);
-
 
 //        urls = getIntent().getStringArrayListExtra("SERVER_URLS");
         urls.add("https://myanime.sharepoint.com/sites/chartlousty/_layouts/15/download.aspx?share=ETxO_oqjXidIrtr9bOw6h60BA5U7QU859SixO8VruwX5ZA");
@@ -144,7 +142,8 @@ public class PlayActivity extends AppCompatActivity {
                     Long startTime = skip.get("startTime");
                     Long endTime = skip.get("endTime");
                     startRecurringTask(startTime, endTime);
-//                    mainHandler.post(() -> player.seekTo(skip));
+                    highlightIntervals.add(new Pair<>(startTime, endTime));
+                    mainHandler.post(() -> highlightedProgressbar.setDurationAndHighlightIntervals(player.getDuration(), highlightIntervals));
                 });
                 player.setTrackSelectionParameters(
                         player
