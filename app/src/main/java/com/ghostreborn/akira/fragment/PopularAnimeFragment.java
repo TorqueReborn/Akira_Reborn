@@ -32,6 +32,7 @@ import java.util.concurrent.Executors;
 public class PopularAnimeFragment extends Fragment {
 
     private RecyclerView animeRecycler;
+    private SearchView searchView;
 
     @Nullable
     @Override
@@ -54,7 +55,7 @@ public class PopularAnimeFragment extends Fragment {
         GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);
         animeRecycler.setLayoutManager(layoutManager);
 
-        SearchView searchView = view.findViewById(R.id.anime_search_view);
+        searchView = view.findViewById(R.id.anime_search_view);
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
@@ -90,6 +91,14 @@ public class PopularAnimeFragment extends Fragment {
             }
         });
 
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (searchView != null){
+            searchView.clearFocus();
+        }
     }
 
     private void getAnime() {
