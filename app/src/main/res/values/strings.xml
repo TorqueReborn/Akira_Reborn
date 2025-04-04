@@ -15,4 +15,6 @@
     <string name="manga_thumbnail">Manga Thumbnail</string>
     <string name="greater_than"><![CDATA[>]]></string>
     <string name="less_than"><![CDATA[<]]></string>
+    <string name="anime">Anime</string>
+    <string name="manga">Manga</string>
 </resources>

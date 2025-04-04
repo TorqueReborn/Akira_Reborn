@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/bottom_navigation_anime"
+        android:title="@string/anime"
+        android:icon="@drawable/anime_icon"/>
+
+    <item
+        android:id="@+id/bottom_navigation_manga"
+        android:title="@string/manga"
+        android:icon="@drawable/manga_icon"/>
+
+</menu>

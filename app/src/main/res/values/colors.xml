@@ -4,6 +4,7 @@
     <color name="white">#FFFFFFFF</color>
     <color name="ghost">#0D0D0D</color>
 
-    <color name="default_background_color">#292929</color>
     <color name="default_font_color">#fff</color>
+    <color name="default_background_color">#292929</color>
+    <color name="dark_background_color">#111111</color>
 </resources>
