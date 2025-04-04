@@ -42,8 +42,21 @@ public class AniSkip {
                     .getJSONArray("results")
                     .getJSONObject(0)
                     .getJSONObject("interval");
-            long startTime = Long.parseLong(interval.getString("startTime").replace(".", ""));
-            long endTime = Long.parseLong(interval.getString("endTime").replace(".", ""));
+            long startTime;
+            String startTimeStr = interval.getString("startTime");
+            if (startTimeStr.contains(".")) {
+                startTime = Long.parseLong(startTimeStr.replace(".", ""));
+            } else {
+                startTime = Long.parseLong(startTimeStr + "000");
+            }
+
+            long endTime;
+            String endTimeStr = interval.getString("endTime");
+            if (endTimeStr.contains(".")) {
+                endTime = Long.parseLong(endTimeStr.replace(".", ""));
+            } else {
+                endTime = Long.parseLong(endTimeStr + "000");
+            }
             startSkip.put(name + "startTime", startTime);
             startSkip.put(name + "endTime", endTime);
         } catch (JSONException e) {

@@ -5,10 +5,10 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 import android.util.Pair;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
@@ -49,6 +49,7 @@ public class PlayActivity extends AppCompatActivity {
 
     private ExoPlayer player;
     private PlayerView playerView;
+    private TextView skipButton;
     private HighlightedProgressbar highlightedProgressbar;
 
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -82,7 +83,11 @@ public class PlayActivity extends AppCompatActivity {
                 long playerDuration = player.getCurrentPosition();
                 for (int i = 0; i<highlightIntervals.size(); i++){
                     if (playerDuration >= highlightIntervals.get(i).first && playerDuration <= highlightIntervals.get(i).second) {
-                        Log.e("TAG", "In Filler");
+                        skipButton.setVisibility(View.VISIBLE);
+                        int finalI = i;
+                        skipButton.setOnClickListener(v -> player.seekTo(highlightIntervals.get(finalI).second));
+                    }else {
+                        skipButton.setVisibility(View.GONE);
                     }
                 }
             });
@@ -102,6 +107,7 @@ public class PlayActivity extends AppCompatActivity {
         });
 
         highlightedProgressbar = findViewById(R.id.highlighted_progress);
+        skipButton = findViewById(R.id.skip_button);
 
         urls = getIntent().getStringArrayListExtra("SERVER_URLS");
         episodeNumber = getIntent().getStringExtra("EPISODE_NUMBER");
@@ -138,6 +144,7 @@ public class PlayActivity extends AppCompatActivity {
         MediaItem mediaItem = MediaItem.fromUri(videoUri);
         player.setMediaItem(mediaItem);
         player.prepare();
+        player.play();
 
         playerView.setControllerVisibilityListener((PlayerView.ControllerVisibilityListener) this::animateHighlightedProgressBar);
 
@@ -150,16 +157,18 @@ public class PlayActivity extends AppCompatActivity {
                         Map<String, Long> skip = new AniSkip().startEndSkip(aniListId, episodeNumber);
 
                         List<Pair<Long, Long>> timePairs = new ArrayList<>();
-                        Long edStart = skip.get("ED_startTime");
-                        Long edEnd = skip.get("ED_endTime");
-                        if (edStart != null && edEnd != null) {
-                            timePairs.add(new Pair<>(edStart, edEnd));
-                        }
+                        highlightIntervals.clear();
 
                         Long opStart = skip.get("OP_startTime");
                         Long opEnd = skip.get("OP_endTime");
                         if (opStart != null && opEnd != null) {
                             timePairs.add(new Pair<>(opStart, opEnd));
+                        }
+
+                        Long edStart = skip.get("ED_startTime");
+                        Long edEnd = skip.get("ED_endTime");
+                        if (edStart != null && edEnd != null) {
+                            timePairs.add(new Pair<>(edStart, edEnd));
                         }
 
                         highlightIntervals.addAll(timePairs);

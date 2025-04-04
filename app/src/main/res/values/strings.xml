@@ -18,4 +18,5 @@
     <string name="anime">Anime</string>
     <string name="manga">Manga</string>
     <string name="exoplayer_subtitle">Exoplayer Subtitle</string>
+    <string name="skip">Skip</string>
 </resources>
