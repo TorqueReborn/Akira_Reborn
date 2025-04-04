@@ -19,7 +19,7 @@ import com.google.android.material.navigation.NavigationBarView;
 
 public class MainActivity extends AppCompatActivity implements NavigationBarView.OnItemSelectedListener {
 
-    private int previousSelectedIndex = -1;
+    private int previousSelectedIndex = 0;
     private long lastFragmentLoadTime = 0;
     private static final int LOAD_FRAGMENT_DELAY = 1000;
 
