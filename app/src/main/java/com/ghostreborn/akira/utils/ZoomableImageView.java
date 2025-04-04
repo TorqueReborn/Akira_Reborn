@@ -149,6 +149,9 @@ public class ZoomableImageView extends AppCompatImageView {
     }
 
     private void fixTranslation() {
+        if (getDrawable() == null) {
+            return; // Exit if no drawable is set
+        }
         matrix.getValues(matrixValues);
         float transX = matrixValues[Matrix.MTRANS_X];
         float transY = matrixValues[Matrix.MTRANS_Y];
@@ -167,6 +170,9 @@ public class ZoomableImageView extends AppCompatImageView {
     }
 
     private void fixScaleAndTranslation() {
+        if (getDrawable() == null) {
+            return; // Exit if no drawable is set
+        }
         matrix.getValues(matrixValues);
         float scaleX = matrixValues[Matrix.MSCALE_X];
         float scaleY = matrixValues[Matrix.MSCALE_Y];
