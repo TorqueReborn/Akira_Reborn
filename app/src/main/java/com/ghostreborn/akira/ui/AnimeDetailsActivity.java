@@ -81,7 +81,7 @@ public class AnimeDetailsActivity extends AppCompatActivity {
 
                 if (!animeDetails.getAnimeSequel().isEmpty()) {
                     animeSequel.setVisibility(View.VISIBLE);
-                    animePrequel.setOnClickListener(v -> {
+                    animeSequel.setOnClickListener(v -> {
                         Intent intent = new Intent(this, AnimeDetailsActivity.class);
                         intent.putExtra("ANIME_ID", animeDetails.getAnimeSequel());
                         startActivity(intent);
