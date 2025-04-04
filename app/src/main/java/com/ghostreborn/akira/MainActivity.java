@@ -1,6 +1,7 @@
 package com.ghostreborn.akira;
 
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.view.MenuItem;
 
 import androidx.activity.EdgeToEdge;
@@ -19,6 +20,8 @@ import com.google.android.material.navigation.NavigationBarView;
 public class MainActivity extends AppCompatActivity implements NavigationBarView.OnItemSelectedListener {
 
     private int previousSelectedIndex = -1;
+    private long lastFragmentLoadTime = 0;
+    private static final int LOAD_FRAGMENT_DELAY = 1000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,7 +40,10 @@ public class MainActivity extends AppCompatActivity implements NavigationBarView
     }
 
     private boolean loadFragment(Fragment fragment) {
-        if (fragment != null) {
+        long currentTime = SystemClock.elapsedRealtime();
+        if (currentTime - lastFragmentLoadTime >= LOAD_FRAGMENT_DELAY && fragment != null) {
+            lastFragmentLoadTime = currentTime;
+
             getSupportFragmentManager()
                     .beginTransaction()
                     .replace(R.id.main_fragment_container, fragment)
