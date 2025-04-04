@@ -3,6 +3,8 @@ package com.ghostreborn.akira.ui;
 import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ProgressBar;
@@ -22,16 +24,22 @@ import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 
 import com.ghostreborn.akira.R;
+import com.ghostreborn.akira.aniskip.AniSkip;
 
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class PlayActivity extends AppCompatActivity {
 
-    private ArrayList<String> urls;
+    private final ArrayList<String> urls = new ArrayList<>();
     private PlayerView playerView;
     private ExoPlayer player;
     private ProgressBar progressBar;
     private int currentIndex = 0;
+
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,7 +52,9 @@ public class PlayActivity extends AppCompatActivity {
             return insets;
         });
 
-        urls = getIntent().getStringArrayListExtra("SERVER_URLS");
+
+//        urls = getIntent().getStringArrayListExtra("SERVER_URLS");
+        urls.add("https://myanime.sharepoint.com/sites/chartlousty/_layouts/15/download.aspx?share=ETxO_oqjXidIrtr9bOw6h60BA5U7QU859SixO8VruwX5ZA");
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
@@ -86,6 +96,11 @@ public class PlayActivity extends AppCompatActivity {
 
             @Override
             public void onTracksChanged(@NonNull Tracks tracks) {
+                executorService.execute(() -> {
+                    Long endTime = new AniSkip().startSkip("58567", "1").get("endTime");
+                    long skip = endTime!=null ? endTime : 0;
+                    mainHandler.post(() -> player.seekTo(skip));
+                });
                 player.setTrackSelectionParameters(
                         player
                                 .getTrackSelectionParameters()
