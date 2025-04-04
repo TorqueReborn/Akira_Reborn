@@ -41,7 +41,7 @@ public class TestFragment extends Fragment {
 
     private void connectAllAnime() {
 
-        String rawJSON = new AniSkip().startSkip("21", "12").get("endTime") + "";
+        String rawJSON = new AniSkip().startEndSkip("21", "12").get("endTime") + "";
         mainHandler.post(() -> testText.setText(rawJSON));
     }
 

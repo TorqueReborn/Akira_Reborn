@@ -15,18 +15,27 @@ import okhttp3.Response;
 
 public class AniSkip {
 
-    public String startAndEndSkip(String id, String episode) {
-        String url = "https://api.aniskip.com/v2/skip-times/" + id + "/" + episode + "?types=ed&episodeLength=0";
+    private Map<String, Long> startSkip(String id, String episode) {
+        String url = "https://api.aniskip.com/v2/skip-times/" + id + "/" + episode + "?types=op&episodeLength=0";
         Request request = new Request.Builder().url(url).build();
         try (Response response = new OkHttpClient().newCall(request).execute()) {
-            return response.body() != null ? response.body().string() : "{}";
+            return response.body() != null ? parseSkip(response.body().string(), "OP_") : new HashMap<>();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public Map<String, Long> startSkip(String id, String episode){
-        String rawJSON = startAndEndSkip(id, episode);
+    private Map<String, Long> endSkip(String id, String episode) {
+        String url = "https://api.aniskip.com/v2/skip-times/" + id + "/" + episode + "?types=ed&episodeLength=0";
+        Request request = new Request.Builder().url(url).build();
+        try (Response response = new OkHttpClient().newCall(request).execute()) {
+            return response.body() != null ? parseSkip(response.body().string(), "ED_") : new HashMap<>();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Map<String, Long> parseSkip(String rawJSON, String name){
         Map<String, Long> startSkip = new HashMap<>();
         try {
             JSONObject interval = new JSONObject(rawJSON)
@@ -35,14 +44,19 @@ public class AniSkip {
                     .getJSONObject("interval");
             long startTime = Long.parseLong(interval.getString("startTime").replace(".", ""));
             long endTime = Long.parseLong(interval.getString("endTime").replace(".", ""));
-            startSkip.put("startTime", startTime);
-            startSkip.put("endTime", endTime);
+            startSkip.put(name + "startTime", startTime);
+            startSkip.put(name + "endTime", endTime);
         } catch (JSONException e) {
             Log.e("TAG", e.toString());
         }
-
         return startSkip;
+    }
 
+    public Map<String, Long> startEndSkip(String id, String episode){
+        Map<String, Long> startEndSkips = new HashMap<>();
+        startEndSkips.putAll(startSkip(id, episode));
+        startEndSkips.putAll(endSkip(id, episode));
+        return startEndSkips;
     }
 
 }

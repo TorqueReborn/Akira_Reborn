@@ -19,6 +19,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackGroup;
 import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -39,22 +40,27 @@ import java.util.concurrent.TimeUnit;
 
 public class PlayActivity extends AppCompatActivity {
 
-    private final ArrayList<String> urls = new ArrayList<>();
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private PlayerView playerView;
-    private ExoPlayer player;
-    private int currentIndex = 0;
     private Timer timer;
+    private int currentIndex = 0;
+    private ArrayList<String> urls = new ArrayList<>();
     private final List<Pair<Long, Long>> highlightIntervals = new ArrayList<>();
+
+    private ExoPlayer player;
+    private PlayerView playerView;
     private HighlightedProgressbar highlightedProgressbar;
+
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
-    public void startRecurringTask(Long startTime, Long endTime) {
+    public void startRecurringTask() {
+        if (timer != null) {
+            stopRecurringTask();
+        }
         timer = new Timer();
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
-                checkDuration(startTime, endTime);
+                checkDuration(highlightIntervals);
             }
         }, 1, TimeUnit.SECONDS.toMillis(2));
     }
@@ -67,16 +73,15 @@ public class PlayActivity extends AppCompatActivity {
         }
     }
 
-    private void checkDuration(Long startTime, Long endTime) {
-
-        if (endTime != 0) {
+    private void checkDuration(List<Pair<Long, Long>> highlightIntervals) {
+        if (highlightIntervals != null) {
             PlayActivity activity = this;
             activity.runOnUiThread(() -> {
                 long playerDuration = player.getCurrentPosition();
-                Log.e("TAG", playerDuration + " " + startTime);
-                if (playerDuration >= startTime && playerDuration <= endTime) {
-                    player.seekTo(endTime);
-                    stopRecurringTask();
+                for (int i = 0; i<highlightIntervals.size(); i++){
+                    if (playerDuration >= highlightIntervals.get(i).first && playerDuration <= highlightIntervals.get(i).second) {
+                        Log.e("TAG", "In Filler");
+                    }
                 }
             });
         }
@@ -96,8 +101,7 @@ public class PlayActivity extends AppCompatActivity {
 
         highlightedProgressbar = findViewById(R.id.highlighted_progress);
 
-//        urls = getIntent().getStringArrayListExtra("SERVER_URLS");
-        urls.add("https://myanime.sharepoint.com/sites/chartlousty/_layouts/15/download.aspx?share=ETxO_oqjXidIrtr9bOw6h60BA5U7QU859SixO8VruwX5ZA");
+        urls = getIntent().getStringArrayListExtra("SERVER_URLS");
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
@@ -138,25 +142,30 @@ public class PlayActivity extends AppCompatActivity {
             @Override
             public void onTracksChanged(@NonNull Tracks tracks) {
                 executorService.execute(() -> {
-                    Map<String, Long> skip = new AniSkip().startSkip("58567", "1");
-                    Long startTime = skip.get("startTime");
-                    Long endTime = skip.get("endTime");
-                    startRecurringTask(startTime, endTime);
-                    highlightIntervals.add(new Pair<>(startTime, endTime));
+                    Map<String, Long> skip = new AniSkip().startEndSkip("58567", "1");
+
+                    List<Pair<Long, Long>> timePairs = new ArrayList<>();
+                    Long edStart = skip.get("ED_startTime");
+                    Long edEnd = skip.get("ED_endTime");
+                    if (edStart != null && edEnd != null) {
+                        timePairs.add(new Pair<>(edStart, edEnd));
+                    }
+
+                    Long opStart = skip.get("OP_startTime");
+                    Long opEnd = skip.get("OP_endTime");
+                    if (opStart != null && opEnd != null) {
+                        timePairs.add(new Pair<>(opStart, opEnd));
+                    }
+
+                    highlightIntervals.addAll(timePairs);
+                    startRecurringTask();
                     mainHandler.post(() -> highlightedProgressbar.setDurationAndHighlightIntervals(player.getDuration(), highlightIntervals));
                 });
+                TrackGroup mediaTrackGroup = tracks.getGroups().get(0).getMediaTrackGroup();
                 player.setTrackSelectionParameters(
-                        player
-                                .getTrackSelectionParameters()
+                        player.getTrackSelectionParameters()
                                 .buildUpon()
-                                .setOverrideForType(
-                                        new TrackSelectionOverride(
-                                                tracks.getGroups()
-                                                        .get(0)
-                                                        .getMediaTrackGroup(),
-                                                0
-                                        )
-                                )
+                                .setOverrideForType(new TrackSelectionOverride(mediaTrackGroup, 0))
                                 .build()
                 );
             }
