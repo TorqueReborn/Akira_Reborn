@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,6 +20,7 @@ import androidx.fragment.app.FragmentActivity;
 
 import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.allAnime.AllAnimeFullDetails;
+import com.ghostreborn.akira.anilist.AniListAuthorize;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,6 +45,11 @@ public class TestFragment extends Fragment {
         executorService.execute(this::connectAllAnime);
 
         parseAccessToken();
+        executorService.execute(() -> {
+            String code = getActivity().getSharedPreferences("AKIRA", Context.MODE_PRIVATE)
+                            .getString("ANILIST_CODE", "");
+            AniListAuthorize.getToken(code, getActivity());
+        });
     }
 
     private void connectAllAnime() {
@@ -61,7 +68,7 @@ public class TestFragment extends Fragment {
                     SharedPreferences preferences = activity.getSharedPreferences("AKIRA", Context.MODE_PRIVATE);
                     preferences.edit()
                             .putBoolean("TOKEN_SAVED", true)
-                            .putString("ANILIST_TOKEN", code)
+                            .putString("ANILIST_CODE", code)
                             .apply();
                 }
             }
