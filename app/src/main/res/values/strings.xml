@@ -20,4 +20,6 @@
     <string name="exoplayer_subtitle">Exoplayer Subtitle</string>
     <string name="skip">Skip</string>
     <string name="anilist">Anilist</string>
+    <string name="login">Login</string>
+    <string name="login_desc">Login with Anilist with your browser</string>
 </resources>
