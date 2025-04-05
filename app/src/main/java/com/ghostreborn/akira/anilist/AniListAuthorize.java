@@ -2,9 +2,14 @@ package com.ghostreborn.akira.anilist;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+import android.widget.Toast;
 
+import com.ghostreborn.akira.MainActivity;
 import com.ghostreborn.akira.database.AniList;
 import com.ghostreborn.akira.database.AniListDao;
 import com.ghostreborn.akira.database.AniListDatabase;
@@ -41,7 +46,7 @@ public class AniListAuthorize {
                     .toString();
         } catch (JSONException e) {
             Log.e("TAG", "Error creating JSON request: ", e);
-            return; // Important: Exit the method if JSON creation fails
+            return;
         }
 
         RequestBody body = RequestBody.create(json, JSON);
@@ -109,6 +114,13 @@ public class AniListAuthorize {
                     AniListDatabase db = AniListDatabase.getDatabase(activity);
                     AniListDao aniListDao = db.aniListDao();
                     aniListDao.insertAll(aniLists);
+
+                    Handler mainHandler = new Handler(Looper.getMainLooper());
+                    mainHandler.post(() -> {
+                        Toast.makeText(activity, "DATA IMPORTED", Toast.LENGTH_SHORT).show();
+                        activity.startActivity(new Intent(activity, MainActivity.class));
+                        activity.finish();
+                    });
 
                 } catch (Exception e) {
                     Log.e("TAG", e.toString());

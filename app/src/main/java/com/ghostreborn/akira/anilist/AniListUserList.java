@@ -2,6 +2,7 @@ package com.ghostreborn.akira.anilist;
 
 import android.util.Log;
 
+import com.ghostreborn.akira.allAnime.AllAnimeSearchMal;
 import com.ghostreborn.akira.database.AniList;
 
 import org.json.JSONArray;
@@ -37,7 +38,7 @@ public class AniListUserList {
                 .addHeader("Authorization", "Bearer " + token)
                 .build();
         try (Response response = client.newCall(request).execute()) {
-            if(response.body() != null){
+            if (response.body() != null) {
                 return response.body().string();
             }
         } catch (IOException ex) {
@@ -65,24 +66,25 @@ public class AniListUserList {
         return connectAniList(graph, token);
     }
 
-    public ArrayList<AniList> aniListEntry(String userID, String token){
+    public ArrayList<AniList> aniListEntry(String userID, String token) {
         String rawJSON = animeList(userID, token);
         ArrayList<AniList> aniListEntries = new ArrayList<>();
-        try{
+        try {
             JSONArray entries = new JSONObject(rawJSON)
                     .getJSONObject("data")
                     .getJSONObject("MediaListCollection")
                     .getJSONArray("lists")
                     .getJSONObject(0)
                     .getJSONArray("entries");
-            for(int i=0; i< entries.length(); i++){
+            for (int i = 0; i < entries.length(); i++) {
                 JSONObject entry = entries.getJSONObject(i);
                 String progress = entry.getString("progress");
                 JSONObject media = entry.getJSONObject("media");
                 String idMAL = media.getString("idMal");
                 String title = media.getJSONObject("title")
                         .getString("userPreferred");
-                aniListEntries.add(new AniList(idMAL,title,progress));
+                String allAnimeId = new AllAnimeSearchMal().getAllAnimeId(title, idMAL);
+                aniListEntries.add(new AniList(idMAL, allAnimeId, title, progress));
             }
         } catch (JSONException e) {
             Log.e("TAG", e.toString());
