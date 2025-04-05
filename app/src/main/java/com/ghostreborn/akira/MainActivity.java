@@ -1,9 +1,7 @@
 package com.ghostreborn.akira;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.view.MenuItem;
@@ -41,10 +39,10 @@ public class MainActivity extends AppCompatActivity implements NavigationBarView
         SharedPreferences sharedPref = getSharedPreferences("AKIRA", Context.MODE_PRIVATE);
         boolean tokenSaved = sharedPref.getBoolean("TOKEN_SAVED", false);
 
-        if (!tokenSaved) {
-            String queryUrl = "https://anilist.co/api/v2/oauth/authorize?client_id=" + 25543 + "&redirect_uri=" + "akira://ghostreborn.in" + "&response_type=code";
-            startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse(queryUrl)));
-        }
+//        if (!tokenSaved) {
+//            String queryUrl = "https://anilist.co/api/v2/oauth/authorize?client_id=" + 25543 + "&redirect_uri=" + "akira://ghostreborn.in" + "&response_type=code";
+//            startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse(queryUrl)));
+//        }
 
         BottomNavigationView bottomNavigationView = findViewById(R.id.main_bottom_navigation);
         bottomNavigationView.setOnItemSelectedListener(this);

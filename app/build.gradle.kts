@@ -46,7 +46,9 @@ dependencies {
     implementation(libs.glide)
     implementation(libs.okhttp)
     implementation(libs.media3.ui)
+    implementation (libs.room.runtime)
     implementation(libs.media3.common)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.exoplayer.hls)
+    annotationProcessor (libs.room.compiler)
 }
