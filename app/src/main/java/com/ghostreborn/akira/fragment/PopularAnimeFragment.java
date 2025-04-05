@@ -72,7 +72,7 @@ public class PopularAnimeFragment extends Fragment {
 
                         for (Anime currentAnime : anime) {
                             executor.execute(() -> {
-                                Anime detailed = new AllAnimeDetails().animeDetails(currentAnime);
+                                Anime detailed = new AllAnimeDetails().animeDetails(currentAnime.getId());
                                 mainHandler.post(() -> {
                                     detailedAnime.add(detailed);
                                     adapter.notifyItemInserted(detailedAnime.size() - 1);
@@ -115,7 +115,7 @@ public class PopularAnimeFragment extends Fragment {
 
                 for (Anime currentAnime : anime) {
                     executor.execute(() -> {
-                        Anime detailed = new AllAnimeDetails().animeDetails(currentAnime);
+                        Anime detailed = new AllAnimeDetails().animeDetails(currentAnime.getId());
                         mainHandler.post(() -> {
                             detailedAnime.add(detailed);
                             adapter.notifyItemInserted(detailedAnime.size() - 1);

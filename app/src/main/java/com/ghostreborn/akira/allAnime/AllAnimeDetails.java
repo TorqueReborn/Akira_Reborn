@@ -28,8 +28,8 @@ public class AllAnimeDetails {
         return connectAllAnime(variables, queryTypes, query);
     }
 
-    public Anime animeDetails(Anime anime){
-        String rawJSON = details(anime.getId());
+    public Anime animeDetails(String id){
+        String rawJSON = details(id);
         String name = "";
         String thumbnail = "";
         String episodes = "";
@@ -64,6 +64,8 @@ public class AllAnimeDetails {
         } catch (JSONException e) {
             Log.e("TAG", e.toString());
         }
+
+        Anime anime = new Anime(id);
         anime.setAnimeName(name);
         anime.setAnimeImage(thumbnail);
         anime.setAnimeEpisodes(episodes);
