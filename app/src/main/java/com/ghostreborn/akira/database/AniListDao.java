@@ -10,11 +10,9 @@ import java.util.List;
 
 @Dao
 public interface AniListDao {
-    @Query("SELECT * FROM aniList")
-    List<AniList> getAll();
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    long insert(AniList aniList);
+    @Query("SELECT allAnimeID FROM aniList")
+    List<String> getAllAnimeIDs();
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     void insertAll(List<AniList> aniLists);

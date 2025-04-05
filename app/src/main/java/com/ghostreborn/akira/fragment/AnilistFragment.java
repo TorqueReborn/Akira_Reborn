@@ -23,9 +23,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.adapter.AnimeAdapter;
-import com.ghostreborn.akira.allAnime.AllAnimeDetails;
+import com.ghostreborn.akira.allAnime.AllAnimeDetailByIds;
 import com.ghostreborn.akira.anilist.AniListAuthorize;
-import com.ghostreborn.akira.database.AniList;
 import com.ghostreborn.akira.database.AniListDao;
 import com.ghostreborn.akira.database.AniListDatabase;
 import com.ghostreborn.akira.model.Anime;
@@ -57,7 +56,7 @@ public class AnilistFragment extends Fragment {
 
 
         Activity activity = getActivity();
-        if(activity != null){
+        if (activity != null) {
             SharedPreferences preferences = activity.getSharedPreferences("AKIRA", Context.MODE_PRIVATE);
             boolean isLoggedIn = preferences.getBoolean("ANILIST_LOGGED_IN", false);
 
@@ -77,22 +76,16 @@ public class AnilistFragment extends Fragment {
         GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);
         aniListRecycler.setLayoutManager(layoutManager);
 
-        List<Anime> detailedAnime = new ArrayList<>();
-        AnimeAdapter adapter = new AnimeAdapter(requireContext(), detailedAnime);
-        aniListRecycler.setAdapter(adapter);
-
         Handler mainHandler = new Handler(Looper.getMainLooper());
         Executors.newSingleThreadExecutor().execute(() -> {
             AniListDatabase db = AniListDatabase.getDatabase(getActivity());
             AniListDao aniListDao = db.aniListDao();
-            List<AniList> aniLists = aniListDao.getAll();
-            for (AniList aniList : aniLists) {
-                Anime anime = new AllAnimeDetails().animeDetails(aniList.allAnimeID);
-                mainHandler.post(() -> {
-                    detailedAnime.add(anime);
-                    adapter.notifyItemInserted(detailedAnime.size() - 1);
-                });
-            }
+            List<String> allAnimeIDs = aniListDao.getAllAnimeIDs();
+            ArrayList<Anime> anime = new AllAnimeDetailByIds().animeDetails(allAnimeIDs);
+            mainHandler.post(() -> {
+                AnimeAdapter adapter = new AnimeAdapter(requireContext(), anime);
+                aniListRecycler.setAdapter(adapter);
+            });
         });
 
     }
