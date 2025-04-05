@@ -34,7 +34,7 @@ public class EpisodeAdapter extends RecyclerView.Adapter<EpisodeAdapter.ViewHold
     ExecutorService executor = Executors.newCachedThreadPool();
     Handler mainHandler = new Handler(Looper.getMainLooper());
 
-    public EpisodeAdapter(Context context, String id, String aniListId,List<String> episodes, int limit, ProgressBar loadingProgress) {
+    public EpisodeAdapter(Context context, String id, String aniListId, List<String> episodes, int limit, ProgressBar loadingProgress) {
         this.context = context;
         this.loadingProgress = loadingProgress;
         this.id = id;
@@ -53,7 +53,7 @@ public class EpisodeAdapter extends RecyclerView.Adapter<EpisodeAdapter.ViewHold
 
     @Override
     public void onBindViewHolder(@NonNull EpisodeAdapter.ViewHolder holder, int position) {
-        if(episodes != null && position < episodes.size()){
+        if (episodes != null && position < episodes.size()) {
             holder.episodeNumber.setText(episodes.get(position));
         }
         holder.itemView.setOnClickListener(v -> {

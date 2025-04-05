@@ -24,23 +24,23 @@ public class AllAnimeSearchMal {
         }
     }
 
-    private String searchMal(String anime){
+    private String searchMal(String anime) {
         String variables = "\"search\":{\"query\":\"" + anime + "\"}";
         String queryTypes = "$search:SearchInput!";
         String query = "shows(search:$search){edges{_id,malId}}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
-    public String getAllAnimeId(String anime, String malId){
+    public String getAllAnimeId(String anime, String malId) {
         String rawJSON = searchMal(anime);
-        try{
+        try {
             JSONArray edges = new JSONObject(rawJSON)
                     .getJSONObject("data")
                     .getJSONObject("shows")
                     .getJSONArray("edges");
-            for (int i=0;i<edges.length();i++){
+            for (int i = 0; i < edges.length(); i++) {
                 JSONObject animeObject = edges.getJSONObject(i);
-                if (animeObject.getString("malId").equals(malId)){
+                if (animeObject.getString("malId").equals(malId)) {
                     return animeObject.getString("_id");
                 }
             }

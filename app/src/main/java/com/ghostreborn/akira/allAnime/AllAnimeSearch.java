@@ -27,14 +27,14 @@ public class AllAnimeSearch {
         }
     }
 
-    public String query(String anime){
+    public String query(String anime) {
         String variables = "\"search\":{\"query\":\"" + anime + "\"}";
         String queryTypes = "$search:SearchInput!";
         String query = "shows(search:$search){edges{_id}}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
-    public ArrayList<Anime> search(String anime){
+    public ArrayList<Anime> search(String anime) {
         String rawJSON = query(anime);
         ArrayList<Anime> ids = new ArrayList<>();
         try {
@@ -42,7 +42,7 @@ public class AllAnimeSearch {
                     .getJSONObject("data")
                     .getJSONObject("shows")
                     .getJSONArray("edges");
-            for(int i=0; i<edges.length(); i++){
+            for (int i = 0; i < edges.length(); i++) {
                 String id = edges.getJSONObject(i).getString("_id");
                 ids.add(new Anime(id));
             }

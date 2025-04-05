@@ -16,7 +16,7 @@ public class MangaDetails {
             String mangaBanner,
             String mangaThumbnail,
             ArrayList<String> mangaChapters
-    ){
+    ) {
         this.mangaName = mangaName;
         this.mangaDescription = mangaDescription;
         this.mangaBanner = mangaBanner;

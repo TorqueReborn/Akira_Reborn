@@ -46,10 +46,7 @@ public class MainActivity extends AppCompatActivity implements NavigationBarView
         if (currentTime - lastFragmentLoadTime >= LOAD_FRAGMENT_DELAY && fragment != null) {
             lastFragmentLoadTime = currentTime;
 
-            getSupportFragmentManager()
-                    .beginTransaction()
-                    .replace(R.id.main_fragment_container, fragment)
-                    .commit();
+            getSupportFragmentManager().beginTransaction().replace(R.id.main_fragment_container, fragment).commit();
             return true;
         }
         return false;

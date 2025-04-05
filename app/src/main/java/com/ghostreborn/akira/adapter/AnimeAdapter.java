@@ -14,9 +14,9 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
-import com.ghostreborn.akira.ui.AnimeDetailsActivity;
 import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.model.Anime;
+import com.ghostreborn.akira.ui.AnimeDetailsActivity;
 
 import java.util.List;
 
@@ -25,7 +25,7 @@ public class AnimeAdapter extends RecyclerView.Adapter<AnimeAdapter.ViewHolder> 
     private final List<Anime> animes;
     private final Context context;
 
-    public AnimeAdapter(Context context, List<Anime> animes){
+    public AnimeAdapter(Context context, List<Anime> animes) {
         this.context = context;
         this.animes = animes;
     }

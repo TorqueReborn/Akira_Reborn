@@ -35,7 +35,7 @@ public class AniSkip {
         }
     }
 
-    private Map<String, Long> parseSkip(String rawJSON, String name){
+    private Map<String, Long> parseSkip(String rawJSON, String name) {
         Map<String, Long> startSkip = new HashMap<>();
         try {
             JSONObject interval = new JSONObject(rawJSON)
@@ -65,7 +65,7 @@ public class AniSkip {
         return startSkip;
     }
 
-    public Map<String, Long> startEndSkip(String id, String episode){
+    public Map<String, Long> startEndSkip(String id, String episode) {
         Map<String, Long> startEndSkips = new HashMap<>();
         startEndSkips.putAll(startSkip(id, episode));
         startEndSkips.putAll(endSkip(id, episode));

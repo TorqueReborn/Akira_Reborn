@@ -22,7 +22,7 @@ public class AnimeDetails {
             String animePrequel,
             String animeSequel,
             ArrayList<String> animeEpisodes
-    ){
+    ) {
         this.aniListId = aniListId;
         this.animeName = animeName;
         this.animeDescription = animeDescription;

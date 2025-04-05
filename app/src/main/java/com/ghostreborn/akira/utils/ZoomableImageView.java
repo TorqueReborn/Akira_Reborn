@@ -14,18 +14,16 @@ import androidx.appcompat.widget.AppCompatImageView;
 
 public class ZoomableImageView extends AppCompatImageView {
 
-    private final Matrix matrix = new Matrix();
-    private ScaleGestureDetector scaleGestureDetector;
-    private final PointF lastTouch = new PointF();
-    private final Matrix savedMatrix = new Matrix();
-
     private static final int NONE = 0;
     private static final int DRAG = 1;
     private static final int ZOOM = 2;
-
+    private final Matrix matrix = new Matrix();
+    private final PointF lastTouch = new PointF();
+    private final Matrix savedMatrix = new Matrix();
+    private final float[] matrixValues = new float[9];
+    private ScaleGestureDetector scaleGestureDetector;
     private int mode = NONE;
     private float oldDist = 1f;
-    private final float[] matrixValues = new float[9];
     private int viewWidth, viewHeight;
     private float originalWidth, originalHeight;
 

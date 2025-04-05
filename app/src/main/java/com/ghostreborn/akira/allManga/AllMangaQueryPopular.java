@@ -27,14 +27,14 @@ public class AllMangaQueryPopular {
         }
     }
 
-    private String query(){
+    private String query() {
         String variables = "\"type\":\"manga\", \"size\":20, \"dateRange\":1";
         String queryTypes = "$type:VaildPopularTypeEnumType!, $size:Int!, $dateRange:Int";
         String query = "queryPopular(type:$type, size:$size, dateRange:$dateRange){recommendations{anyCard{_id}}}";
         return connectAllManga(variables, queryTypes, query);
     }
 
-    public ArrayList<Manga> queryPopular(){
+    public ArrayList<Manga> queryPopular() {
         String rawJSON = query();
         ArrayList<Manga> ids = new ArrayList<>();
         try {
@@ -42,7 +42,7 @@ public class AllMangaQueryPopular {
                     .getJSONObject("data")
                     .getJSONObject("queryPopular")
                     .getJSONArray("recommendations");
-            for(int i=0; i<recommendations.length(); i++){
+            for (int i = 0; i < recommendations.length(); i++) {
                 String id = recommendations.getJSONObject(i).getJSONObject("anyCard").getString("_id");
                 ids.add(new Manga(id));
             }

@@ -69,7 +69,7 @@ public class AnilistFragment extends Fragment {
                     startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse(queryUrl)));
                 });
             }
-        }else {
+        } else {
             RecyclerView aniListRecycler = mView.findViewById(R.id.anilist_recycler);
             GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);
             aniListRecycler.setLayoutManager(layoutManager);

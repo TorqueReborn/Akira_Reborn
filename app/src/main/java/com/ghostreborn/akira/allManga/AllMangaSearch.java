@@ -27,14 +27,14 @@ public class AllMangaSearch {
         }
     }
 
-    public String query(String manga){
+    public String query(String manga) {
         String variables = "\"search\":{\"query\":\"" + manga + "\"}";
         String queryTypes = "$search:SearchInput!";
         String query = "mangas(search:$search){edges{_id}}";
         return connectAllManga(variables, queryTypes, query);
     }
 
-    public ArrayList<Manga> search(String manga){
+    public ArrayList<Manga> search(String manga) {
         String rawJSON = query(manga);
         ArrayList<Manga> ids = new ArrayList<>();
         try {
@@ -42,7 +42,7 @@ public class AllMangaSearch {
                     .getJSONObject("data")
                     .getJSONObject("mangas")
                     .getJSONArray("edges");
-            for(int i=0; i<edges.length(); i++){
+            for (int i = 0; i < edges.length(); i++) {
                 String id = edges.getJSONObject(i).getString("_id");
                 ids.add(new Manga(id));
             }

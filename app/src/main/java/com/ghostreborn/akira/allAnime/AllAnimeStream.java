@@ -98,7 +98,7 @@ public class AllAnimeStream {
         String encryptedUrls = getEncryptedEpisodeUrls(id, episode);
         ArrayList<String> decryptedUrls = decryptedUrls(encryptedUrls);
         ArrayList<String> allUrls = new ArrayList<>();
-        for(String decryptedUrl: decryptedUrls){
+        for (String decryptedUrl : decryptedUrls) {
             allUrls.addAll(serverUrls(decryptedUrl));
         }
         return allUrls;

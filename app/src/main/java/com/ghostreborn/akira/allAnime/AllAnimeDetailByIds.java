@@ -29,7 +29,7 @@ public class AllAnimeDetailByIds {
     }
 
     private String details(String ids) {
-        String variables = "\"ids\":" + "[" + ids.substring(0, ids.length()-1) + "]";
+        String variables = "\"ids\":" + "[" + ids.substring(0, ids.length() - 1) + "]";
         String queryTypes = "$ids:[String!]!";
         String query = "showsWithIds(ids:$ids){name, englishName,thumbnail,lastEpisodeInfo,rating,status}";
         return connectAllAnime(variables, queryTypes, query);

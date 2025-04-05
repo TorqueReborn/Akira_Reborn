@@ -9,7 +9,7 @@ public class Manga {
     private String mangaRating;
     private String mangaStatus;
 
-    public Manga(String id){
+    public Manga(String id) {
         this.id = id;
     }
 
@@ -21,39 +21,39 @@ public class Manga {
         return mangaImage;
     }
 
+    public void setMangaImage(String mangaImage) {
+        this.mangaImage = mangaImage;
+    }
+
     public String getMangaName() {
         return mangaName;
+    }
+
+    public void setMangaName(String mangaName) {
+        this.mangaName = mangaName;
     }
 
     public String getMangaChapters() {
         return mangaChapters;
     }
 
-    public String getMangaRating() {
-        return mangaRating;
-    }
-
-    public String getMangaStatus() {
-        return mangaStatus;
-    }
-
     public void setMangaChapters(String mangaChapters) {
         this.mangaChapters = mangaChapters;
+    }
+
+    public String getMangaRating() {
+        return mangaRating;
     }
 
     public void setMangaRating(String mangaRating) {
         this.mangaRating = mangaRating;
     }
 
+    public String getMangaStatus() {
+        return mangaStatus;
+    }
+
     public void setMangaStatus(String mangaStatus) {
         this.mangaStatus = mangaStatus;
-    }
-
-    public void setMangaImage(String mangaImage) {
-        this.mangaImage = mangaImage;
-    }
-
-    public void setMangaName(String mangaName) {
-        this.mangaName = mangaName;
     }
 }

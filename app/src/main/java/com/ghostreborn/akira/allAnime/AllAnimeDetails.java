@@ -1,10 +1,14 @@
 package com.ghostreborn.akira.allAnime;
 
 import android.util.Log;
+
 import com.ghostreborn.akira.model.Anime;
+
 import org.json.JSONException;
 import org.json.JSONObject;
+
 import java.io.IOException;
+
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -21,14 +25,14 @@ public class AllAnimeDetails {
         }
     }
 
-    private String details(String id){
+    private String details(String id) {
         String variables = "\"showId\":\"" + id + "\"";
         String queryTypes = "$showId:String!";
         String query = "show(_id:$showId){name, englishName,thumbnail,lastEpisodeInfo,rating,status}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
-    public Anime animeDetails(String id){
+    public Anime animeDetails(String id) {
         String rawJSON = details(id);
         String name = "";
         String thumbnail = "";
@@ -41,7 +45,7 @@ public class AllAnimeDetails {
                     .getJSONObject("show");
             name = show.getString("englishName");
 
-            if(name.equals("null")){
+            if (name.equals("null")) {
                 name = show.getString("name");
             }
 
@@ -52,12 +56,12 @@ public class AllAnimeDetails {
             rating = show.getString("rating");
             status = show.getString("status");
 
-            if (status.equals("Not Yet Released")){
+            if (status.equals("Not Yet Released")) {
                 status = "Not Found";
             }
 
             // thumbnail fix
-            if(!thumbnail.contains("https")){
+            if (!thumbnail.contains("https")) {
                 thumbnail = "https://wp.youtube-anime.com/aln.youtube-anime.com/" + thumbnail;
             }
 

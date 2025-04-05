@@ -67,7 +67,7 @@ public class AniListAuthorize {
                 preferences.edit()
                         .putString("ANILIST_TOKEN", token)
                         .apply();
-                 getUserID(token, activity);
+                getUserID(token, activity);
             }
         } catch (IOException | JSONException e) {
             Log.e("TAG", e.toString());

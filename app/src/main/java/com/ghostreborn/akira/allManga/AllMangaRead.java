@@ -35,7 +35,7 @@ public class AllMangaRead {
         return connectAllManga(variables, queryTypes, query);
     }
 
-    public ArrayList<String> getChapters(String id, String chapter){
+    public ArrayList<String> getChapters(String id, String chapter) {
         String rawJSON = chapters(id, chapter);
         ArrayList<String> thumbnails = new ArrayList<>();
         try {
@@ -45,10 +45,10 @@ public class AllMangaRead {
                     .getJSONArray("edges")
                     .getJSONObject(0)
                     .getJSONArray("pictureUrls");
-            for(int i=0; i<pictureUrls.length(); i++){
+            for (int i = 0; i < pictureUrls.length(); i++) {
                 String thumbnail = "https://ytimgf.youtube-anime.com/" +
                         pictureUrls.getJSONObject(i)
-                        .getString("url");
+                                .getString("url");
                 thumbnails.add(thumbnail);
             }
         } catch (JSONException e) {

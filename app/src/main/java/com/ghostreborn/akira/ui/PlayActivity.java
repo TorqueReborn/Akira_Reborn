@@ -40,20 +40,18 @@ import java.util.concurrent.TimeUnit;
 
 public class PlayActivity extends AppCompatActivity {
 
+    private final List<Pair<Long, Long>> highlightIntervals = new ArrayList<>();
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private Timer timer;
     private String aniListId = "";
     private String episodeNumber = "";
     private int currentIndex = 0;
     private ArrayList<String> urls = new ArrayList<>();
-    private final List<Pair<Long, Long>> highlightIntervals = new ArrayList<>();
-
     private ExoPlayer player;
     private PlayerView playerView;
     private TextView skipButton;
     private HighlightedProgressbar highlightedProgressbar;
-
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public void startRecurringTask() {
         if (timer != null) {
@@ -81,12 +79,12 @@ public class PlayActivity extends AppCompatActivity {
             PlayActivity activity = this;
             activity.runOnUiThread(() -> {
                 long playerDuration = player.getCurrentPosition();
-                for (int i = 0; i<highlightIntervals.size(); i++){
+                for (int i = 0; i < highlightIntervals.size(); i++) {
                     if (playerDuration >= highlightIntervals.get(i).first && playerDuration <= highlightIntervals.get(i).second) {
                         skipButton.setVisibility(View.VISIBLE);
                         int finalI = i;
                         skipButton.setOnClickListener(v -> player.seekTo(highlightIntervals.get(finalI).second));
-                    }else {
+                    } else {
                         skipButton.setVisibility(View.GONE);
                     }
                 }
@@ -153,7 +151,7 @@ public class PlayActivity extends AppCompatActivity {
             @Override
             public void onTracksChanged(@NonNull Tracks tracks) {
                 executorService.execute(() -> {
-                    if(episodeNumber != null && aniListId != null){
+                    if (episodeNumber != null && aniListId != null) {
                         Map<String, Long> skip = new AniSkip().startEndSkip(aniListId, episodeNumber);
 
                         List<Pair<Long, Long>> timePairs = new ArrayList<>();

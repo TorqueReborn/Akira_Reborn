@@ -39,7 +39,7 @@ public class AllAnimeFullDetails {
     public AnimeDetails fullDetails(String id) {
         String rawJSON = full(id);
 
-        if (rawJSON.equals("{}")){
+        if (rawJSON.equals("{}")) {
             return null;
         }
 
@@ -61,7 +61,7 @@ public class AllAnimeFullDetails {
 
             anime = show.getString("englishName");
 
-            if(anime.equals("null")){
+            if (anime.equals("null")) {
                 anime = show.getString("name");
             }
 
@@ -71,7 +71,7 @@ public class AllAnimeFullDetails {
 
             JSONArray sub = show.getJSONObject("availableEpisodesDetail")
                     .getJSONArray("sub");
-            for(int i=0; i<sub.length(); i++){
+            for (int i = 0; i < sub.length(); i++) {
                 episodes.add(sub.getString(i));
             }
 
@@ -95,7 +95,7 @@ public class AllAnimeFullDetails {
         } catch (JSONException e) {
             Log.e("TAG", e.toString());
         }
-        return new AnimeDetails(aniListId, anime, description, banner, thumbnail, prequel, sequel,episodes);
+        return new AnimeDetails(aniListId, anime, description, banner, thumbnail, prequel, sequel, episodes);
     }
 
 }

@@ -96,7 +96,7 @@ public class PopularMangaFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
-        if (searchView != null){
+        if (searchView != null) {
             searchView.clearFocus();
         }
     }

@@ -8,7 +8,8 @@ import androidx.room.PrimaryKey;
 @Entity(tableName = "aniList")
 public class AniList {
 
-    @PrimaryKey @NonNull
+    @PrimaryKey
+    @NonNull
     public String malID;
 
     @ColumnInfo(name = "allAnimeID")
@@ -20,7 +21,7 @@ public class AniList {
     @ColumnInfo(name = "progress")
     public String progress;
 
-    public AniList(@NonNull String malID, String allAnimeID, String title, String progress){
+    public AniList(@NonNull String malID, String allAnimeID, String title, String progress) {
         this.malID = malID;
         this.allAnimeID = allAnimeID;
         this.title = title;

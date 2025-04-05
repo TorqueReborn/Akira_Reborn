@@ -9,16 +9,14 @@ import androidx.room.RoomDatabase;
 @Database(entities = {AniList.class}, version = 1, exportSchema = false)
 public abstract class AniListDatabase extends RoomDatabase {
 
-    public abstract AniListDao aniListDao();
-
     private static volatile AniListDatabase INSTANCE;
 
-    public static AniListDatabase getDatabase(final Context context){
-        if(INSTANCE == null){
+    public static AniListDatabase getDatabase(final Context context) {
+        if (INSTANCE == null) {
             synchronized (AniListDatabase.class) {
-                if(INSTANCE == null){
+                if (INSTANCE == null) {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
-                            AniListDatabase.class, "akira_database")
+                                    AniListDatabase.class, "akira_database")
                             .build();
 
                 }
@@ -26,5 +24,7 @@ public abstract class AniListDatabase extends RoomDatabase {
         }
         return INSTANCE;
     }
+
+    public abstract AniListDao aniListDao();
 
 }

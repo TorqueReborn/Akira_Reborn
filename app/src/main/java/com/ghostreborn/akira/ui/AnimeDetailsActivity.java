@@ -110,18 +110,14 @@ public class AnimeDetailsActivity extends AppCompatActivity {
                     });
                 });
 
-                EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, animeDetails.getAniListId(),animeDetails.getAnimeEpisodes(), 5, loadingProgress);
+                EpisodeAdapter adapter = new EpisodeAdapter(this, animeID, animeDetails.getAniListId(), animeDetails.getAnimeEpisodes(), 5, loadingProgress);
                 episodeRecycler.setAdapter(adapter);
 
                 animeName.setText(animeDetails.getAnimeName());
                 animeDescription.setText(animeDetails.getAnimeDescription());
 
-                Glide.with(this)
-                        .load(animeDetails.getAnimeThumbnail())
-                        .into(animeImage);
-                Glide.with(this)
-                        .load(animeDetails.getAnimeBanner())
-                        .into(animeBanner);
+                Glide.with(this).load(animeDetails.getAnimeThumbnail()).into(animeImage);
+                Glide.with(this).load(animeDetails.getAnimeBanner()).into(animeBanner);
             });
         });
 
