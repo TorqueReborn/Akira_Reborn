@@ -31,7 +31,7 @@ public class AllMangaDetailByIds {
     private String details(String ids) {
         String variables = "\"ids\":" + "[" + ids.substring(0, ids.length() - 1) + "]";
         String queryTypes = "$ids:[String!]!";
-        String query = "mangasWithIds(ids:$ids){name, englishName,thumbnail,lastChapterInfo,rating,status}";
+        String query = "mangasWithIds(ids:$ids){_id,name,englishName,thumbnail,lastChapterInfo,rating,status}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
@@ -42,6 +42,7 @@ public class AllMangaDetailByIds {
         }
         ArrayList<Manga> mangas = new ArrayList<>();
         String rawJSON = details(ids.toString());
+        String id;
         String name;
         String thumbnail;
         String chapters;
@@ -54,6 +55,8 @@ public class AllMangaDetailByIds {
 
             for (int i = 0; i < shows.length(); i++) {
                 JSONObject show = shows.getJSONObject(i);
+
+                id = show.getString("_id");
 
                 name = show.getString("englishName");
 
@@ -77,7 +80,7 @@ public class AllMangaDetailByIds {
                     thumbnail = "https://wp.youtube-anime.com/aln.youtube-anime.com/" + thumbnail;
                 }
 
-                Manga manga = new Manga(idList.get(i));
+                Manga manga = new Manga(id);
                 manga.setMangaName(name);
                 manga.setMangaImage(thumbnail);
                 manga.setMangaChapters(chapters);

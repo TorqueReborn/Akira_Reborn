@@ -31,7 +31,7 @@ public class AllAnimeDetailByIds {
     private String details(String ids) {
         String variables = "\"ids\":" + "[" + ids.substring(0, ids.length() - 1) + "]";
         String queryTypes = "$ids:[String!]!";
-        String query = "showsWithIds(ids:$ids){name, englishName,thumbnail,lastEpisodeInfo,rating,status}";
+        String query = "showsWithIds(ids:$ids){_id,name, englishName,thumbnail,lastEpisodeInfo,rating,status}";
         return connectAllAnime(variables, queryTypes, query);
     }
 
@@ -42,6 +42,7 @@ public class AllAnimeDetailByIds {
         }
         ArrayList<Anime> animes = new ArrayList<>();
         String rawJSON = details(ids.toString());
+        String id;
         String name;
         String thumbnail;
         String episodes;
@@ -54,6 +55,8 @@ public class AllAnimeDetailByIds {
 
             for (int i = 0; i < shows.length(); i++) {
                 JSONObject show = shows.getJSONObject(i);
+
+                id = show.getString("_id");
 
                 name = show.getString("englishName");
 
@@ -77,7 +80,7 @@ public class AllAnimeDetailByIds {
                     thumbnail = "https://wp.youtube-anime.com/aln.youtube-anime.com/" + thumbnail;
                 }
 
-                Anime anime = new Anime(idList.get(i));
+                Anime anime = new Anime(id);
                 anime.setAnimeName(name);
                 anime.setAnimeImage(thumbnail);
                 anime.setAnimeEpisodes(episodes);
