@@ -16,6 +16,9 @@ public interface AniListDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     long insert(AniList aniList);
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    void insertAll(List<AniList> aniLists);
+
     @Update
     void update(AniList aniList);
 }

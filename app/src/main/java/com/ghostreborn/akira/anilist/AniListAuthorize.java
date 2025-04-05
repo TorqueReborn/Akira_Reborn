@@ -5,25 +5,32 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
+import com.ghostreborn.akira.database.AniList;
+import com.ghostreborn.akira.database.AniListDao;
+import com.ghostreborn.akira.database.AniListDatabase;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 public class AniListAuthorize {
 
-    public static void getToken(String code, Activity activity) {
+    public void getToken(String code, Activity activity) {
         OkHttpClient client = new OkHttpClient();
+        SharedPreferences preferences = activity.getSharedPreferences("AKIRA", Context.MODE_PRIVATE);
 
         MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-        String json = "{}";
+        String json;
         try {
             json = new JSONObject()
                     .put("grant_type", "authorization_code")
@@ -33,7 +40,8 @@ public class AniListAuthorize {
                     .put("code", code)
                     .toString();
         } catch (JSONException e) {
-            Log.e("TAG", "Error: ", e);
+            Log.e("TAG", "Error creating JSON request: ", e);
+            return; // Important: Exit the method if JSON creation fails
         }
 
         RequestBody body = RequestBody.create(json, JSON);
@@ -46,25 +54,26 @@ public class AniListAuthorize {
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
-            String accessToken = new JSONObject(response.body().string())
-                    .getString("access_token");
-            SharedPreferences preferences = activity.getSharedPreferences("AKIRA", Context.MODE_PRIVATE);
-            preferences.edit()
-                    .putBoolean("ANILIST_LOGGED_IN", true)
-                    .putString("ANILIST_TOKEN", accessToken)
-                    .apply();
-            getUserNameAndId(accessToken, activity);
+            if (response.isSuccessful()) {
+                ResponseBody responseBody = response.body();
+                String rawJSON = responseBody == null ? "{}" : responseBody.string();
+                String token = new JSONObject(rawJSON)
+                        .getString("access_token");
+                preferences.edit()
+                        .putString("ANILIST_TOKEN", token)
+                        .apply();
+                 getUserID(token, activity);
+            }
         } catch (IOException | JSONException e) {
-            Log.e("TAG", "Error: ", e);
+            Log.e("TAG", e.toString());
         }
     }
 
-    private static void getUserNameAndId(String token,Activity activity) {
+    private void getUserID(String token, Activity activity) {
         OkHttpClient client = new OkHttpClient();
         String query = "{\n" +
                 "  Viewer {\n" +
                 "    id\n" +
-                "    name\n" +
                 "  }\n" +
                 "}";
         MediaType JSON = MediaType.parse("application/json; charset=utf-8");
@@ -73,7 +82,7 @@ public class AniListAuthorize {
         try {
             jsonObject.put("query", query);
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e("TAG", e.toString());
         }
 
         RequestBody body = RequestBody.create(jsonObject.toString(), JSON);
@@ -83,21 +92,30 @@ public class AniListAuthorize {
                 .addHeader("Authorization", "Bearer " + token)
                 .build();
         try (Response response = client.newCall(request).execute()) {
-            String responseData = response.body().string();
-            try {
-                JSONObject jsonResponse = new JSONObject(responseData);
-                JSONObject data = jsonResponse.getJSONObject("data");
-                JSONObject viewer = data.getJSONObject("Viewer");
-                String id = viewer.getString("id");
-                SharedPreferences preferences = activity.getSharedPreferences("AKIRA", Context.MODE_PRIVATE);
-                preferences.edit()
-                        .putString("ANILIST_USER_ID", id)
-                        .apply();
-            } catch (Exception e) {
-                e.printStackTrace();
+            if (response.body() != null) {
+                String responseData = response.body().string();
+                try {
+                    String id = new JSONObject(responseData)
+                            .getJSONObject("data")
+                            .getJSONObject("Viewer")
+                            .getString("id");
+                    SharedPreferences preferences = activity.getSharedPreferences("AKIRA", Context.MODE_PRIVATE);
+                    preferences.edit()
+                            .putString("ANILIST_USER_ID", id)
+                            .putBoolean("ANILIST_LOGGED_IN", true)
+                            .apply();
+                    ArrayList<AniList> aniLists = new AniListUserList().aniListEntry(id, token);
+
+                    AniListDatabase db = AniListDatabase.getDatabase(activity);
+                    AniListDao aniListDao = db.aniListDao();
+                    aniListDao.insertAll(aniLists);
+
+                } catch (Exception e) {
+                    Log.e("TAG", e.toString());
+                }
             }
-        } catch (IOException ex) {
-            Log.e("TAG", "Error: ", ex);
+        } catch (IOException e) {
+            Log.e("TAG", e.toString());
         }
     }
 
