@@ -1,7 +1,5 @@
 package com.ghostreborn.akira;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.view.MenuItem;
@@ -14,6 +12,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 
+import com.ghostreborn.akira.fragment.AnilistFragment;
 import com.ghostreborn.akira.fragment.PopularAnimeFragment;
 import com.ghostreborn.akira.fragment.PopularMangaFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -36,16 +35,9 @@ public class MainActivity extends AppCompatActivity implements NavigationBarView
             return insets;
         });
 
-        SharedPreferences sharedPref = getSharedPreferences("AKIRA", Context.MODE_PRIVATE);
-        boolean tokenSaved = sharedPref.getBoolean("TOKEN_SAVED", false);
-
-//        if (!tokenSaved) {
-//            String queryUrl = "https://anilist.co/api/v2/oauth/authorize?client_id=" + 25543 + "&redirect_uri=" + "akira://ghostreborn.in" + "&response_type=code";
-//            startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse(queryUrl)));
-//        }
-
         BottomNavigationView bottomNavigationView = findViewById(R.id.main_bottom_navigation);
         bottomNavigationView.setOnItemSelectedListener(this);
+        bottomNavigationView.setSelectedItemId(R.id.bottom_navigation_anilist);
 
     }
 
@@ -72,6 +64,8 @@ public class MainActivity extends AppCompatActivity implements NavigationBarView
             selectedIndex = 0;
         } else if (selectedItemId == R.id.bottom_navigation_manga) {
             selectedIndex = 1;
+        } else if (selectedItemId == R.id.bottom_navigation_anilist) {
+            selectedIndex = 2;
         }
 
         if (selectedIndex != -1 && selectedIndex != previousSelectedIndex) {
@@ -79,8 +73,10 @@ public class MainActivity extends AppCompatActivity implements NavigationBarView
 
             if (selectedItemId == R.id.bottom_navigation_anime) {
                 fragment = new PopularAnimeFragment();
-            } else {
+            } else if (selectedItemId == R.id.bottom_navigation_manga) {
                 fragment = new PopularMangaFragment();
+            } else {
+                fragment = new AnilistFragment();
             }
 
             if (loadFragment(fragment)) {

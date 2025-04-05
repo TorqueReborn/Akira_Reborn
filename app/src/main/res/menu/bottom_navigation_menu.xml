@@ -7,6 +7,12 @@
         android:icon="@drawable/anime_icon"/>
 
     <item
+        android:id="@+id/bottom_navigation_anilist"
+        android:title="@string/anilist"
+        android:icon="@drawable/user_icon"
+        />
+
+    <item
         android:id="@+id/bottom_navigation_manga"
         android:title="@string/manga"
         android:icon="@drawable/manga_icon"/>
