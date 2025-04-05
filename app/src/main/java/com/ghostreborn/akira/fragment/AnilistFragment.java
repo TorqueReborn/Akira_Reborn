@@ -8,7 +8,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -79,17 +78,7 @@ public class AnilistFragment extends Fragment {
                     AniListDatabase db = AniListDatabase.getDatabase(getActivity());
                     AniListDao aniListDao = db.aniListDao();
                     List<String> allAnimeIDs = aniListDao.getAllAnimeIDs();
-
-                    for(String id: allAnimeIDs){
-                        Log.e("TAG", id);
-                    }
-
                     ArrayList<Anime> anime = new AllAnimeDetailByIds().animeDetails(allAnimeIDs);
-
-                    for(Anime an: anime){
-                        Log.e("TAG", an.getAnimeName() + " " + an.getId());
-                    }
-
                     mainHandler.post(() -> {
                         AnimeAdapter adapter = new AnimeAdapter(requireContext(), anime);
                         aniListRecycler.setAdapter(adapter);

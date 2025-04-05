@@ -38,7 +38,6 @@ public class MainActivity extends AppCompatActivity implements NavigationBarView
         BottomNavigationView bottomNavigationView = findViewById(R.id.main_bottom_navigation);
         bottomNavigationView.setOnItemSelectedListener(this);
         bottomNavigationView.setSelectedItemId(R.id.bottom_navigation_anilist);
-
     }
 
     private boolean loadFragment(Fragment fragment) {
