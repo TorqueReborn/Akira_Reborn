@@ -1,7 +1,12 @@
 package com.ghostreborn.akira;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.MenuItem;
 
 import androidx.activity.EdgeToEdge;
@@ -33,6 +38,16 @@ public class MainActivity extends AppCompatActivity implements NavigationBarView
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        SharedPreferences sharedPref = getSharedPreferences("AKIRA", Context.MODE_PRIVATE);
+        boolean tokenSaved = sharedPref.getBoolean("TOKEN_SAVED", false);
+
+        if (!tokenSaved){
+            String queryUrl = "https://anilist.co/api/v2/oauth/authorize?client_id="+ 25543+"&redirect_uri="+"akira://ghostreborn.in"+"&response_type=code";
+            startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse(queryUrl)));
+        } else {
+            Log.e("TAG", sharedPref.getString("ANILIST_TOKEN", ""));
+        }
 
         BottomNavigationView bottomNavigationView = findViewById(R.id.main_bottom_navigation);
         bottomNavigationView.setOnItemSelectedListener(this);
