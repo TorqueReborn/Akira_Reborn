@@ -69,24 +69,23 @@ public class AnilistFragment extends Fragment {
                     startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse(queryUrl)));
                 });
             }
+        }else {
+            RecyclerView aniListRecycler = mView.findViewById(R.id.anilist_recycler);
+            GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);
+            aniListRecycler.setLayoutManager(layoutManager);
 
-        }
-
-        RecyclerView aniListRecycler = mView.findViewById(R.id.anilist_recycler);
-        GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);
-        aniListRecycler.setLayoutManager(layoutManager);
-
-        Handler mainHandler = new Handler(Looper.getMainLooper());
-        Executors.newSingleThreadExecutor().execute(() -> {
-            AniListDatabase db = AniListDatabase.getDatabase(getActivity());
-            AniListDao aniListDao = db.aniListDao();
-            List<String> allAnimeIDs = aniListDao.getAllAnimeIDs();
-            ArrayList<Anime> anime = new AllAnimeDetailByIds().animeDetails(allAnimeIDs);
-            mainHandler.post(() -> {
-                AnimeAdapter adapter = new AnimeAdapter(requireContext(), anime);
-                aniListRecycler.setAdapter(adapter);
+            Handler mainHandler = new Handler(Looper.getMainLooper());
+            Executors.newSingleThreadExecutor().execute(() -> {
+                AniListDatabase db = AniListDatabase.getDatabase(getActivity());
+                AniListDao aniListDao = db.aniListDao();
+                List<String> allAnimeIDs = aniListDao.getAllAnimeIDs();
+                ArrayList<Anime> anime = new AllAnimeDetailByIds().animeDetails(allAnimeIDs);
+                mainHandler.post(() -> {
+                    AnimeAdapter adapter = new AnimeAdapter(requireContext(), anime);
+                    aniListRecycler.setAdapter(adapter);
+                });
             });
-        });
+        }
 
     }
 

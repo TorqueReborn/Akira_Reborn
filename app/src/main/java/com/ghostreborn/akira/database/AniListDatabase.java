@@ -6,7 +6,7 @@ import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 
-@Database(entities = {AniList.class}, version = 1)
+@Database(entities = {AniList.class}, version = 1, exportSchema = false)
 public abstract class AniListDatabase extends RoomDatabase {
 
     public abstract AniListDao aniListDao();
