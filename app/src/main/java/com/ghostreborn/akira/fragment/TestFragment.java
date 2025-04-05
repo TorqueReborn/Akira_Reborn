@@ -14,6 +14,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.ghostreborn.akira.R;
+import com.ghostreborn.akira.allAnime.AllAnimeSearchMal;
 import com.ghostreborn.akira.database.AniList;
 import com.ghostreborn.akira.database.AniListDao;
 import com.ghostreborn.akira.database.AniListDatabase;
@@ -50,11 +51,29 @@ public class TestFragment extends Fragment {
     }
 
     private void connectAllAnime() {
-//        AniList anilist = new AniList("58939", "7");
-//        long inserted = aniListDao.insert(anilist);
+//        AniList anilist;
+//        long inserted;
+//
+//        anilist = new AniList("58939", "SAKAMOTO DAYS", "7");
+//        inserted = aniListDao.insert(anilist);
+//        android.util.Log.e("TAG", "Inserted row ID for malID 58939 (SAKAMOTO DAYS): " + inserted);
+//
+//        anilist = new AniList("21", "ONE PIECE", "1122");
+//        inserted = aniListDao.insert(anilist);
+//        android.util.Log.e("TAG", "Inserted row ID for malID 21 (ONE PIECE): " + inserted);
+//
+//        anilist = new AniList("58567", "Ore dake Level Up na Ken: Season 2 - Arise from the Shadow", "9");
+//        inserted = aniListDao.insert(anilist);
+//        android.util.Log.e("TAG", "Inserted row ID for malID 58567 (Ore dake Level Up na Ken: Season 2 - Arise from the Shadow): " + inserted);
+//
+//        anilist = new AniList("31240", "Re:Zero kara Hajimeru Isekai Seikatsu", "9");
+//        inserted = aniListDao.insert(anilist);
+//        android.util.Log.e("TAG", "Inserted row ID for malID 31240 (Re:Zero kara Hajimeru Isekai Seikatsu): " + inserted);
+
         List<AniList> aniLists = aniListDao.getAll();
+        AllAnimeSearchMal allAnimeSearchMal = new AllAnimeSearchMal();
         for (AniList aniList : aniLists) {
-            Log.e("TAG", aniList.malID + " " + aniList.progress);
+            Log.e("TAG", allAnimeSearchMal.getAllAnimeId(aniList.title, aniList.malID));
         }
         mainHandler.post(() -> {
 //            Toast.makeText(getContext(), inserted + "", Toast.LENGTH_SHORT).show();
