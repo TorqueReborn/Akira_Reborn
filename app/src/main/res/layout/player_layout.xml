@@ -9,7 +9,7 @@
         android:id="@+id/exo_play_pause"
         style="@style/ExoMediaButton.Play"
         android:contentDescription="@string/exo_controls_pause_description"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/constraintLayout3"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/anime_episode_title"
