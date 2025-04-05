@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.adapter.MangaAdapter;
+import com.ghostreborn.akira.allManga.AllMangaDetailByIds;
 import com.ghostreborn.akira.allManga.AllMangaDetails;
 import com.ghostreborn.akira.allManga.AllMangaQueryPopular;
 import com.ghostreborn.akira.allManga.AllMangaSearch;
@@ -102,26 +103,13 @@ public class PopularMangaFragment extends Fragment {
     }
 
     private void getManga() {
-        ExecutorService executor = Executors.newCachedThreadPool();
         Handler mainHandler = new Handler(Looper.getMainLooper());
-
-        executor.execute(() -> {
-            List<Manga> manga = new AllMangaQueryPopular().queryPopular();
-
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<String> allAnimeIDs = new AllMangaQueryPopular().queryPopular();
+            ArrayList<Manga> manga = new AllMangaDetailByIds().mangaDetails(allAnimeIDs);
             mainHandler.post(() -> {
-                List<Manga> detailedManga = new ArrayList<>();
-                MangaAdapter adapter = new MangaAdapter(requireContext(), detailedManga);
+                MangaAdapter adapter = new MangaAdapter(requireContext(), manga);
                 mangaRecycler.setAdapter(adapter);
-
-                for (Manga currentManga : manga) {
-                    executor.execute(() -> {
-                        Manga detailed = new AllMangaDetails().mangaDetails(currentManga);
-                        mainHandler.post(() -> {
-                            detailedManga.add(detailed);
-                            adapter.notifyItemInserted(detailedManga.size() - 1);
-                        });
-                    });
-                }
             });
         });
     }

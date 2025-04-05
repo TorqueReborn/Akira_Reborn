@@ -68,28 +68,28 @@ public class AnilistFragment extends Fragment {
                     String queryUrl = "https://anilist.co/api/v2/oauth/authorize?client_id=25543&redirect_uri=akira://ghostreborn.in&response_type=code";
                     startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse(queryUrl)));
                 });
-            }
-        } else {
-            RecyclerView aniListRecycler = mView.findViewById(R.id.anilist_recycler);
-            GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);
-            aniListRecycler.setLayoutManager(layoutManager);
+            } else {
+                RecyclerView aniListRecycler = mView.findViewById(R.id.anilist_recycler);
+                GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 2);
+                aniListRecycler.setLayoutManager(layoutManager);
 
-            Handler mainHandler = new Handler(Looper.getMainLooper());
-            Executors.newSingleThreadExecutor().execute(() -> {
-                AniListDatabase db = AniListDatabase.getDatabase(getActivity());
-                AniListDao aniListDao = db.aniListDao();
-                List<String> allAnimeIDs = aniListDao.getAllAnimeIDs();
-                ArrayList<Anime> anime = new AllAnimeDetailByIds().animeDetails(allAnimeIDs);
-                mainHandler.post(() -> {
-                    AnimeAdapter adapter = new AnimeAdapter(requireContext(), anime);
-                    aniListRecycler.setAdapter(adapter);
+                Handler mainHandler = new Handler(Looper.getMainLooper());
+                Executors.newSingleThreadExecutor().execute(() -> {
+                    AniListDatabase db = AniListDatabase.getDatabase(getActivity());
+                    AniListDao aniListDao = db.aniListDao();
+                    List<String> allAnimeIDs = aniListDao.getAllAnimeIDs();
+                    ArrayList<Anime> anime = new AllAnimeDetailByIds().animeDetails(allAnimeIDs);
+                    mainHandler.post(() -> {
+                        AnimeAdapter adapter = new AnimeAdapter(requireContext(), anime);
+                        aniListRecycler.setAdapter(adapter);
+                    });
                 });
-            });
-        }
 
+            }
+        }
     }
 
-    private void parseAccessToken() {
+    private void parseAccessToken () {
         FragmentActivity activity = getActivity();
         if (activity != null) {
             Intent intent = activity.getIntent();
@@ -102,5 +102,4 @@ public class AnilistFragment extends Fragment {
             }
         }
     }
-
 }

@@ -2,8 +2,6 @@ package com.ghostreborn.akira.allManga;
 
 import android.util.Log;
 
-import com.ghostreborn.akira.model.Manga;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -34,9 +32,9 @@ public class AllMangaQueryPopular {
         return connectAllManga(variables, queryTypes, query);
     }
 
-    public ArrayList<Manga> queryPopular() {
+    public ArrayList<String> queryPopular() {
         String rawJSON = query();
-        ArrayList<Manga> ids = new ArrayList<>();
+        ArrayList<String> ids = new ArrayList<>();
         try {
             JSONArray recommendations = new JSONObject(rawJSON)
                     .getJSONObject("data")
@@ -44,7 +42,7 @@ public class AllMangaQueryPopular {
                     .getJSONArray("recommendations");
             for (int i = 0; i < recommendations.length(); i++) {
                 String id = recommendations.getJSONObject(i).getJSONObject("anyCard").getString("_id");
-                ids.add(new Manga(id));
+                ids.add(id);
             }
         } catch (JSONException e) {
             Log.e("TAG", e.toString());

@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.ghostreborn.akira.R;
 import com.ghostreborn.akira.adapter.AnimeAdapter;
+import com.ghostreborn.akira.allAnime.AllAnimeDetailByIds;
 import com.ghostreborn.akira.allAnime.AllAnimeDetails;
 import com.ghostreborn.akira.allAnime.AllAnimeQueryPopular;
 import com.ghostreborn.akira.allAnime.AllAnimeSearch;
@@ -102,26 +103,13 @@ public class PopularAnimeFragment extends Fragment {
     }
 
     private void getAnime() {
-        ExecutorService executor = Executors.newCachedThreadPool();
         Handler mainHandler = new Handler(Looper.getMainLooper());
-
-        executor.execute(() -> {
-            List<Anime> anime = new AllAnimeQueryPopular().queryPopular();
-
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<String> allAnimeIDs = new AllAnimeQueryPopular().queryPopular();
+            ArrayList<Anime> anime = new AllAnimeDetailByIds().animeDetails(allAnimeIDs);
             mainHandler.post(() -> {
-                List<Anime> detailedAnime = new ArrayList<>();
-                AnimeAdapter adapter = new AnimeAdapter(requireContext(), detailedAnime);
+                AnimeAdapter adapter = new AnimeAdapter(requireContext(), anime);
                 animeRecycler.setAdapter(adapter);
-
-                for (Anime currentAnime : anime) {
-                    executor.execute(() -> {
-                        Anime detailed = new AllAnimeDetails().animeDetails(currentAnime.getId());
-                        mainHandler.post(() -> {
-                            detailedAnime.add(detailed);
-                            adapter.notifyItemInserted(detailedAnime.size() - 1);
-                        });
-                    });
-                }
             });
         });
     }

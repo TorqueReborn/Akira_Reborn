@@ -2,14 +2,13 @@ package com.ghostreborn.akira.allAnime;
 
 import android.util.Log;
 
-import com.ghostreborn.akira.model.Anime;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -34,9 +33,9 @@ public class AllAnimeQueryPopular {
         return connectAllAnime(variables, queryTypes, query);
     }
 
-    public ArrayList<Anime> queryPopular() {
+    public List<String> queryPopular() {
         String rawJSON = query();
-        ArrayList<Anime> ids = new ArrayList<>();
+        List<String> ids = new ArrayList<>();
         try {
             JSONArray recommendations = new JSONObject(rawJSON)
                     .getJSONObject("data")
@@ -44,7 +43,7 @@ public class AllAnimeQueryPopular {
                     .getJSONArray("recommendations");
             for (int i = 0; i < recommendations.length(); i++) {
                 String id = recommendations.getJSONObject(i).getJSONObject("anyCard").getString("_id");
-                ids.add(new Anime(id));
+                ids.add(id);
             }
         } catch (JSONException e) {
             Log.e("TAG", e.toString());
