@@ -6,7 +6,6 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
-import android.util.Log;
 import android.view.MenuItem;
 
 import androidx.activity.EdgeToEdge;
@@ -24,9 +23,9 @@ import com.google.android.material.navigation.NavigationBarView;
 
 public class MainActivity extends AppCompatActivity implements NavigationBarView.OnItemSelectedListener {
 
+    private static final int LOAD_FRAGMENT_DELAY = 1000;
     private int previousSelectedIndex = 0;
     private long lastFragmentLoadTime = 0;
-    private static final int LOAD_FRAGMENT_DELAY = 1000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,11 +41,9 @@ public class MainActivity extends AppCompatActivity implements NavigationBarView
         SharedPreferences sharedPref = getSharedPreferences("AKIRA", Context.MODE_PRIVATE);
         boolean tokenSaved = sharedPref.getBoolean("TOKEN_SAVED", false);
 
-        if (!tokenSaved){
-            String queryUrl = "https://anilist.co/api/v2/oauth/authorize?client_id="+ 25543+"&redirect_uri="+"akira://ghostreborn.in"+"&response_type=code";
+        if (!tokenSaved) {
+            String queryUrl = "https://anilist.co/api/v2/oauth/authorize?client_id=" + 25543 + "&redirect_uri=" + "akira://ghostreborn.in" + "&response_type=code";
             startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse(queryUrl)));
-        } else {
-            Log.e("TAG", sharedPref.getString("ANILIST_TOKEN", ""));
         }
 
         BottomNavigationView bottomNavigationView = findViewById(R.id.main_bottom_navigation);

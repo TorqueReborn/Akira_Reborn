@@ -53,8 +53,51 @@ public class AniListAuthorize {
                     .putBoolean("ANILIST_LOGGED_IN", true)
                     .putString("ANILIST_TOKEN", accessToken)
                     .apply();
+            getUserNameAndId(accessToken, activity);
         } catch (IOException | JSONException e) {
             Log.e("TAG", "Error: ", e);
+        }
+    }
+
+    private static void getUserNameAndId(String token,Activity activity) {
+        OkHttpClient client = new OkHttpClient();
+        String query = "{\n" +
+                "  Viewer {\n" +
+                "    id\n" +
+                "    name\n" +
+                "  }\n" +
+                "}";
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
+        JSONObject jsonObject = new JSONObject();
+        try {
+            jsonObject.put("query", query);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        RequestBody body = RequestBody.create(jsonObject.toString(), JSON);
+        Request request = new Request.Builder()
+                .url("https://graphql.anilist.co")
+                .post(body)
+                .addHeader("Authorization", "Bearer " + token)
+                .build();
+        try (Response response = client.newCall(request).execute()) {
+            String responseData = response.body().string();
+            try {
+                JSONObject jsonResponse = new JSONObject(responseData);
+                JSONObject data = jsonResponse.getJSONObject("data");
+                JSONObject viewer = data.getJSONObject("Viewer");
+                String id = viewer.getString("id");
+                SharedPreferences preferences = activity.getSharedPreferences("AKIRA", Context.MODE_PRIVATE);
+                preferences.edit()
+                        .putString("ANILIST_USER_ID", id)
+                        .apply();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } catch (IOException ex) {
+            Log.e("TAG", "Error: ", ex);
         }
     }
 
