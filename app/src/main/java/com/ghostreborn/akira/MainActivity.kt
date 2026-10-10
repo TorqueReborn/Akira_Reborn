@@ -41,7 +41,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AkiraTheme {
-                AkiraApp()
+                LoginScreen(
+                    onLoginClick = { email, password ->
+                    }
+                )
             }
         }
     }
