@@ -19,10 +19,20 @@ import com.ghostreborn.akira.ui.theme.AkiraTheme
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Arrangement
+import androidx.core.view.WindowCompat
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        WindowCompat.getInsetsController(
+            window,
+            window.decorView
+        ).apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
+        }
+
         enableEdgeToEdge()
         setContent {
             AkiraTheme {
