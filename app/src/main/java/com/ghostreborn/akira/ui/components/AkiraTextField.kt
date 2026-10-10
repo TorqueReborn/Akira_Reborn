@@ -24,7 +24,8 @@ fun AkiraTextField(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     isPassword: Boolean = false,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
+    isError: Boolean = false
 ) {
     OutlinedTextField(
         value = value,
@@ -49,6 +50,7 @@ fun AkiraTextField(
             PasswordVisualTransformation()
         } else {
             VisualTransformation.None
-        }
+        },
+        isError = isError
     )
 }
