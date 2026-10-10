@@ -1,62 +1,105 @@
 package com.ghostreborn.akira
 
+import android.util.Log
 import android.util.Patterns
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
-import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.text.input.KeyboardType
-import com.ghostreborn.akira.ui.theme.AkiraPrimary
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import com.ghostreborn.akira.ui.components.AkiraButton
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.ghostreborn.akira.features.auth.services.AuthRepository
+import com.ghostreborn.akira.features.auth.services.TokenManager
+import com.ghostreborn.akira.features.auth.widgets.CloudflareVerificationDialog
+import com.ghostreborn.akira.ui.components.AkiraBranding
+import com.ghostreborn.akira.ui.components.AkiraButton
 import com.ghostreborn.akira.ui.components.AkiraTextField
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
-    onLoginClick: (String, String) -> Unit,
-    isLoading: Boolean = false,
-    errorMessage: String? = null
+    onLoginSuccess: () -> Unit
 ) {
-    var email by rememberSaveable {
-        mutableStateOf("")
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var emailTouched by rememberSaveable { mutableStateOf(false) }
+    var loginAttempted by rememberSaveable { mutableStateOf(false) }
+
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showCaptchaDialog by remember { mutableStateOf(false) }
+
+    val emailIsValid = email.contains("@") || email.trim().length >= 3
+
+    val showEmailError = (emailTouched || loginAttempted) && email.isNotBlank() && !emailIsValid
+
+    fun performLogin(turnstileToken: String) {
+        isLoading = true
+        errorMessage = null
+        scope.launch {
+            try {
+                val authResult = AuthRepository.authenticate(
+                    usernameOrEmail = email.trim(),
+                    rawPassword = password,
+                    recaptchCode = turnstileToken
+                )
+
+                TokenManager.saveAuthData(
+                    context = context,
+                    accessToken = authResult.accessToken,
+                    refreshToken = authResult.refreshToken,
+                    sessionId = authResult.sessionId,
+                    username = authResult.username,
+                    displayName = authResult.displayName,
+                    picture = authResult.picture,
+                    userId = authResult.userId,
+                    email = if (email.contains("@")) email.trim() else authResult.email,
+                    isEmailVerified = authResult.isEmailVerified
+                )
+
+                Log.d("LoginScreen", "Auth success! Saving tokens and navigating to home...")
+                onLoginSuccess()
+            } catch (e: Exception) {
+                Log.e("LoginScreen", "Auth error: ${e.message}", e)
+                errorMessage = e.message ?: "Authentication failed"
+                android.widget.Toast.makeText(context, errorMessage, android.widget.Toast.LENGTH_LONG).show()
+            } finally {
+                isLoading = false
+            }
+        }
     }
 
-    var password by rememberSaveable {
-        mutableStateOf("")
+    if (showCaptchaDialog) {
+        CloudflareVerificationDialog(
+            onTokenExtracted = { token ->
+                showCaptchaDialog = false
+                performLogin(token)
+            },
+            onDismiss = { showCaptchaDialog = false }
+        )
     }
-
-    var emailTouched by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var loginAttempted by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    val emailIsValid = Patterns.EMAIL_ADDRESS
-        .matcher(email.trim())
-        .matches()
-
-    val showEmailError =
-        (emailTouched || loginAttempted) &&
-                email.isNotBlank() &&
-                !emailIsValid
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -70,20 +113,7 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "AKIRA",
-                style = MaterialTheme.typography.displayLarge,
-                color = AkiraPrimary,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Your anime universe awaits.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            AkiraBranding()
 
             Spacer(modifier = Modifier.height(40.dp))
 
@@ -111,7 +141,7 @@ fun LoginScreen(
                     email = it
                     emailTouched = true
                 },
-                label = "Email",
+                label = "Email or Username",
                 keyboardType = KeyboardType.Email,
                 isError = showEmailError,
                 enabled = !isLoading
@@ -119,7 +149,7 @@ fun LoginScreen(
 
             if (showEmailError) {
                 Text(
-                    text = "Enter a valid email address.",
+                    text = "Enter a valid username or email address.",
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 12.dp, top = 4.dp),
@@ -135,14 +165,15 @@ fun LoginScreen(
                 onValueChange = { password = it },
                 label = "Password",
                 isPassword = true,
-                keyboardType = KeyboardType.Password
+                keyboardType = KeyboardType.Password,
+                enabled = !isLoading
             )
 
             if (!errorMessage.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = errorMessage,
+                    text = errorMessage ?: "",
                     modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium
@@ -155,14 +186,12 @@ fun LoginScreen(
                 text = "Login",
                 onClick = {
                     loginAttempted = true
-
                     if (emailIsValid && password.isNotBlank()) {
-                        onLoginClick(email.trim(), password)
+                        showCaptchaDialog = true
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = email.isNotBlank() &&
-                        password.isNotBlank(),
+                enabled = email.isNotBlank() && password.isNotBlank() && !isLoading,
                 loading = isLoading
             )
         }

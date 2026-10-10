@@ -25,3 +25,10 @@ val AkiraSurfaceBorder = Color(0xFFEDE8F5)
 val AkiraTextPrimary = Color(0xFF1E1B2E)
 val AkiraTextSecondary = Color(0xFF6E6B7B)
 val AkiraTextHint = Color(0xFFA39EB0)
+
+// Logo Gradient Colors
+val AkiraLogoBlue = Color(0xFF3B82F6)
+val AkiraLogoPurple = Color(0xFF8B5CF6)
+val AkiraLogoPink = Color(0xFFEC4899)
+val AkiraShadowColor = Color(0x1A6D28D9)
+val AkiraGlowColor = Color(0x408B5CF6)
