@@ -16,6 +16,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+
 @Composable
 fun AkiraTextField(
     value: String,
@@ -27,6 +33,10 @@ fun AkiraTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     isError: Boolean = false
 ) {
+    var passwordVisible by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -46,11 +56,26 @@ fun AkiraTextField(
         keyboardOptions = KeyboardOptions(
             keyboardType = keyboardType
         ),
-        visualTransformation = if (isPassword) {
+        visualTransformation = if (
+            isPassword && !passwordVisible
+        ) {
             PasswordVisualTransformation()
         } else {
             VisualTransformation.None
         },
-        isError = isError
+        isError = isError,
+        trailingIcon = {
+            if (isPassword) {
+                TextButton(
+                    onClick = {
+                        passwordVisible = !passwordVisible
+                    }
+                ) {
+                    Text(
+                        text = if (passwordVisible) "Hide" else "Show"
+                    )
+                }
+            }
+        },
     )
 }
