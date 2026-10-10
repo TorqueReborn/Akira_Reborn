@@ -1,5 +1,6 @@
 package com.ghostreborn.akira
 
+import android.util.Patterns
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -37,6 +38,23 @@ fun LoginScreen(
     var password by rememberSaveable {
         mutableStateOf("")
     }
+
+    var emailTouched by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var loginAttempted by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    val emailIsValid = Patterns.EMAIL_ADDRESS
+        .matcher(email.trim())
+        .matches()
+
+    val showEmailError =
+        (emailTouched || loginAttempted) &&
+                email.isNotBlank() &&
+                !emailIsValid
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -87,10 +105,24 @@ fun LoginScreen(
 
             AkiraTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = {
+                    email = it
+                    emailTouched = true
+                },
                 label = "Email",
                 keyboardType = KeyboardType.Email
             )
+
+            if (showEmailError) {
+                Text(
+                    text = "Enter a valid email address.",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, top = 4.dp),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -107,7 +139,11 @@ fun LoginScreen(
             AkiraButton(
                 text = "Login",
                 onClick = {
-                    onLoginClick(email.trim(), password)
+                    loginAttempted = true
+
+                    if (emailIsValid && password.isNotBlank()) {
+                        onLoginClick(email.trim(), password)
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = email.isNotBlank() &&
