@@ -30,7 +30,8 @@ import com.ghostreborn.akira.ui.components.AkiraTextField
 @Composable
 fun LoginScreen(
     onLoginClick: (String, String) -> Unit,
-    isLoading: Boolean = false
+    isLoading: Boolean = false,
+    errorMessage: String? = null
 ) {
     var email by rememberSaveable {
         mutableStateOf("")
@@ -136,6 +137,17 @@ fun LoginScreen(
                 isPassword = true,
                 keyboardType = KeyboardType.Password
             )
+
+            if (!errorMessage.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = errorMessage,
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
