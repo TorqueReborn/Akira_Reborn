@@ -262,7 +262,7 @@ fun SettingsScreen(
                         isLoggingOut = true
                         scope.launch {
                             val token = TokenManager.getAccessToken(context)
-                            AuthRepository.logout(token)
+                            AuthRepository.logout(token, context = context)
                             TokenManager.clear(context)
                             onLogoutSuccess()
                         }

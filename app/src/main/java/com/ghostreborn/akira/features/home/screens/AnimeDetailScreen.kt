@@ -99,7 +99,7 @@ fun AnimeDetailScreen(
         }
 
         try {
-            val d = AnimeRepository.fetchAnimeDetail(animeId)
+            val d = AnimeRepository.fetchAnimeDetail(animeId, context = context)
             detail = d
             if (d.episodesDetail.sub.isNotEmpty()) {
                 selectedAudioTab = "SUB"

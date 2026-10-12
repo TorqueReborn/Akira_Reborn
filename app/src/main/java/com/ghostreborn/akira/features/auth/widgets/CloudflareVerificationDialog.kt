@@ -236,7 +236,8 @@ fun CloudflareVerificationDialog(
                                         }
                                     }
 
-                                    loadUrl("https://api.allanime.day/captcha/turnstile", targetHeaders)
+                                    val captchaUrl = com.ghostreborn.akira.core.config.MkissaConfigProvider.currentEndpoints.captchaUrl
+                                    loadUrl(captchaUrl, targetHeaders)
                                 }
                             }
                         )

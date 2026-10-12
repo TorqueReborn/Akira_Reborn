@@ -72,6 +72,7 @@ fun HomeScreen(
     onNavigateToDetail: (AnimeShow) -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState()
 
@@ -116,7 +117,8 @@ fun HomeScreen(
                     page = page,
                     searchQuery = q,
                     sortBy = sortBy,
-                    translationType = translationType
+                    translationType = translationType,
+                    context = context
                 )
 
                 if (page == 1) {
@@ -143,7 +145,7 @@ fun HomeScreen(
         // Load top-ranked for carousel
         scope.launch {
             try {
-                val ranked = AnimeRepository.fetchTopRankedAnime(dateRange = 1, size = 8)
+                val ranked = AnimeRepository.fetchTopRankedAnime(dateRange = 1, size = 8, context = context)
                 if (ranked.isNotEmpty()) {
                     featuredShows.clear()
                     featuredShows.addAll(ranked)

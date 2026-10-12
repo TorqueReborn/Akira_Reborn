@@ -1,5 +1,6 @@
 package com.ghostreborn.akira.features.auth.services
 
+import android.content.Context
 import android.util.Log
 import com.ghostreborn.akira.core.config.MkissaConfigProvider
 import com.ghostreborn.akira.features.auth.models.AuthResult
@@ -15,7 +16,8 @@ import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 object AuthRepository {
-    const val API_URL = "https://api.mkissa.net/api"
+    val API_URL: String
+        get() = MkissaConfigProvider.currentEndpoints.apiBaseUrl
 
     private const val AUTHENTICATE_MUTATION = """
 mutation(
@@ -74,7 +76,8 @@ mutation {
         usernameOrEmail: String,
         rawPassword: String,
         recaptchCode: String,
-        captchaProvider: String = "turnstile"
+        captchaProvider: String = "turnstile",
+        context: Context? = null
     ): AuthResult = withContext(Dispatchers.IO) {
         val idTrimmed = usernameOrEmail.trim()
         val passTrimmed = rawPassword.trim()
@@ -103,32 +106,35 @@ mutation {
         val mediaType = "application/json; charset=UTF-8".toMediaType()
         val body = requestBodyJson.toString().toRequestBody(mediaType)
 
+        val config = if (context != null) MkissaConfigProvider.getConfig(context) else MkissaConfigProvider.currentConfig
+        val endpoints = config.endpoints
+
         val request = Request.Builder()
-            .url(API_URL)
+            .url(endpoints.apiBaseUrl)
             .post(body)
             .header("Content-Type", "application/json; charset=UTF-8")
             .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:155.0) Gecko/20100101 Firefox/155.0")
             .header("Accept", "*/*")
             .header("Accept-Language", "en-US,en;q=0.9")
-            .header("Origin", "https://youtu-chan.com")
-            .header("Referer", "https://youtu-chan.com/")
-            .header("x-build-id", MkissaConfigProvider.currentBuildId)
-            .header("Host", "api.mkissa.net")
+            .header("Origin", endpoints.authOrigin)
+            .header("Referer", endpoints.authReferer)
+            .header("x-build-id", config.buildId)
+            .header("Host", endpoints.apiHostHeader)
             .header("Sec-Fetch-Dest", "empty")
             .header("Sec-Fetch-Mode", "cors")
             .header("Sec-Fetch-Site", "cross-site")
             .header("Priority", "u=4")
             .build()
 
-        Log.d("AuthRepo", "Sending authenticate mutation with id=$idTrimmed, buildId=${MkissaConfigProvider.currentBuildId}")
+        Log.d("AuthRepo", "Sending authenticate mutation with id=$idTrimmed, buildId=${config.buildId}")
         httpClient.newCall(request).execute().use { response ->
             val raw = response.body?.string() ?: ""
-            Log.d("AuthRepo", "Auth response code: ${response.code}, body: $raw")
+            Log.d("AuthRepo", "Auth response code: ${response.code}")
             parseAuthenticateResponse(raw, idTrimmed)
         }
     }
 
-    suspend fun logout(accessToken: String?): Boolean = withContext(Dispatchers.IO) {
+    suspend fun logout(accessToken: String?, context: Context? = null): Boolean = withContext(Dispatchers.IO) {
         try {
             val requestBodyJson = JSONObject().apply {
                 put("query", LOGOUT_MUTATION.trim())
@@ -136,15 +142,18 @@ mutation {
             val mediaType = "application/json; charset=UTF-8".toMediaType()
             val body = requestBodyJson.toString().toRequestBody(mediaType)
 
+            val config = if (context != null) MkissaConfigProvider.getConfig(context) else MkissaConfigProvider.currentConfig
+            val endpoints = config.endpoints
+
             val reqBuilder = Request.Builder()
-                .url(API_URL)
+                .url(endpoints.apiBaseUrl)
                 .post(body)
                 .header("Content-Type", "application/json; charset=UTF-8")
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:155.0) Gecko/20100101 Firefox/155.0")
-                .header("Origin", "https://youtu-chan.com")
-                .header("Referer", "https://youtu-chan.com/")
-                .header("x-build-id", MkissaConfigProvider.currentBuildId)
-                .header("Host", "api.mkissa.net")
+                .header("Origin", endpoints.authOrigin)
+                .header("Referer", endpoints.authReferer)
+                .header("x-build-id", config.buildId)
+                .header("Host", endpoints.apiHostHeader)
 
             if (!accessToken.isNullOrBlank()) {
                 val authHeader = if (accessToken.startsWith("Bearer ", ignoreCase = true)) accessToken else "Bearer $accessToken"

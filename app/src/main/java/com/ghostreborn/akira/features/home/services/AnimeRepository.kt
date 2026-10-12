@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.ghostreborn.akira.core.config.MkissaConfigProvider
+import com.ghostreborn.akira.core.config.OperationRegistry
 import com.ghostreborn.akira.features.home.models.AnimeDetail
 import com.ghostreborn.akira.features.home.models.AnimePageResult
 import com.ghostreborn.akira.features.home.models.AnimeShow
@@ -29,7 +30,9 @@ data class EpisodeFetchResult(
 
 object AnimeRepository {
     private const val TAG = "AnimeRepository"
-    const val BASE_URL = "https://api.mkissa.net/api"
+
+    val BASE_URL: String
+        get() = MkissaConfigProvider.currentEndpoints.apiBaseUrl
 
     // Preferences
     var allowAdult: Boolean = false
@@ -72,14 +75,18 @@ object AnimeRepository {
         clearCache()
     }
 
-    const val BROWSE_PERSISTED_QUERY_HASH =
-        "8b319a0fda488e4319f1b6d99093ba12802f3fc039572f39bcc02d5f9b9d9b02"
-    const val TOP_RANKED_PERSISTED_QUERY_HASH =
-        "c947693e2a04dfa9074df5ec01c6c5209fc9f9556f3e5d420dbca97f9d1b6d98"
-    const val DETAIL_PERSISTED_QUERY_HASH =
-        "c6c067496f962fba87c7aaf6c215a40a6d3933c69012bd15e4d8949e58f3c010"
-    const val EPISODE_PERSISTED_QUERY_HASH =
-        "670bbf38d0868f446e2346c1e956ca2c40c416e733ca248fd54e04f1c8b99145"
+    // Dynamic persisted query hash getters with fallback
+    val BROWSE_PERSISTED_QUERY_HASH: String
+        get() = MkissaConfigProvider.currentConfig.getOperationHash(OperationRegistry.OP_BROWSE)
+
+    val TOP_RANKED_PERSISTED_QUERY_HASH: String
+        get() = MkissaConfigProvider.currentConfig.getOperationHash(OperationRegistry.OP_TOP_RANKED)
+
+    val DETAIL_PERSISTED_QUERY_HASH: String
+        get() = MkissaConfigProvider.currentConfig.getOperationHash(OperationRegistry.OP_DETAIL)
+
+    val EPISODE_PERSISTED_QUERY_HASH: String
+        get() = MkissaConfigProvider.currentConfig.getOperationHash(OperationRegistry.OP_EPISODE)
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -97,17 +104,20 @@ object AnimeRepository {
         topRankedCache = null
     }
 
-    private fun getHeaders(): Map<String, String> = mapOf(
-        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0",
-        "Accept" to "*/*",
-        "Accept-Language" to "en-US,en;q=0.9",
-        "Referer" to "https://mkissa.to/",
-        "Origin" to "https://mkissa.to",
-        "x-build-id" to MkissaConfigProvider.currentBuildId,
-        "Sec-Fetch-Dest" to "empty",
-        "Sec-Fetch-Mode" to "cors",
-        "Sec-Fetch-Site" to "cross-site"
-    )
+    private fun getHeaders(buildId: String = MkissaConfigProvider.currentBuildId): Map<String, String> {
+        val endpoints = MkissaConfigProvider.currentEndpoints
+        return mapOf(
+            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0",
+            "Accept" to "*/*",
+            "Accept-Language" to "en-US,en;q=0.9",
+            "Referer" to endpoints.appReferer,
+            "Origin" to endpoints.appOrigin,
+            "x-build-id" to buildId,
+            "Sec-Fetch-Dest" to "empty",
+            "Sec-Fetch-Mode" to "cors",
+            "Sec-Fetch-Site" to "cross-site"
+        )
+    }
 
     suspend fun fetchAnimeList(
         page: Int = 1,
@@ -118,8 +128,13 @@ object AnimeRepository {
         sortBy: String? = null,
         countryOrigin: String? = null,
         season: String? = null,
-        seasonYear: Int? = null
+        seasonYear: Int? = null,
+        context: Context? = null
     ): AnimePageResult = withContext(Dispatchers.IO) {
+        val config = if (context != null) MkissaConfigProvider.getConfig(context) else MkissaConfigProvider.currentConfig
+        val buildId = config.buildId
+        val queryHash = config.getOperationHash(OperationRegistry.OP_BROWSE)
+
         val searchObj = JSONObject().apply {
             put("listProfile", listProfile)
             put("allowAdult", allowAdult)
@@ -150,7 +165,7 @@ object AnimeRepository {
         val extensionsObj = JSONObject().apply {
             put("persistedQuery", JSONObject().apply {
                 put("version", 1)
-                put("sha256Hash", BROWSE_PERSISTED_QUERY_HASH)
+                put("sha256Hash", queryHash)
             })
         }
 
@@ -163,7 +178,7 @@ object AnimeRepository {
         }
 
         val reqBuilder = Request.Builder().url(fullUrl)
-        getHeaders().forEach { (k, v) -> reqBuilder.header(k, v) }
+        getHeaders(buildId).forEach { (k, v) -> reqBuilder.header(k, v) }
 
         httpClient.newCall(reqBuilder.build()).execute().use { resp ->
             val body = resp.body?.string() ?: ""
@@ -177,8 +192,16 @@ object AnimeRepository {
         }
     }
 
-    suspend fun fetchTopRankedAnime(dateRange: Int = 1, size: Int = 15): List<AnimeShow> = withContext(Dispatchers.IO) {
+    suspend fun fetchTopRankedAnime(
+        dateRange: Int = 1,
+        size: Int = 15,
+        context: Context? = null
+    ): List<AnimeShow> = withContext(Dispatchers.IO) {
         topRankedCache?.takeIf { it.isNotEmpty() }?.let { return@withContext it }
+
+        val config = if (context != null) MkissaConfigProvider.getConfig(context) else MkissaConfigProvider.currentConfig
+        val buildId = config.buildId
+        val queryHash = config.getOperationHash(OperationRegistry.OP_TOP_RANKED)
 
         val variablesObj = JSONObject().apply {
             put("type", "anime")
@@ -192,7 +215,7 @@ object AnimeRepository {
         val extensionsObj = JSONObject().apply {
             put("persistedQuery", JSONObject().apply {
                 put("version", 1)
-                put("sha256Hash", TOP_RANKED_PERSISTED_QUERY_HASH)
+                put("sha256Hash", queryHash)
             })
         }
 
@@ -201,7 +224,7 @@ object AnimeRepository {
         val fullUrl = "$BASE_URL?variables=$encodedVars&extensions=$encodedExts"
 
         val reqBuilder = Request.Builder().url(fullUrl)
-        getHeaders().forEach { (k, v) -> reqBuilder.header(k, v) }
+        getHeaders(buildId).forEach { (k, v) -> reqBuilder.header(k, v) }
 
         httpClient.newCall(reqBuilder.build()).execute().use { resp ->
             val body = resp.body?.string() ?: ""
@@ -226,8 +249,15 @@ object AnimeRepository {
         }
     }
 
-    suspend fun fetchAnimeDetail(animeId: String): AnimeDetail = withContext(Dispatchers.IO) {
+    suspend fun fetchAnimeDetail(
+        animeId: String,
+        context: Context? = null
+    ): AnimeDetail = withContext(Dispatchers.IO) {
         detailCache[animeId]?.let { return@withContext it }
+
+        val config = if (context != null) MkissaConfigProvider.getConfig(context) else MkissaConfigProvider.currentConfig
+        val buildId = config.buildId
+        val queryHash = config.getOperationHash(OperationRegistry.OP_DETAIL)
 
         val variablesObj = JSONObject().apply {
             put("_id", animeId)
@@ -243,7 +273,7 @@ object AnimeRepository {
         val extensionsObj = JSONObject().apply {
             put("persistedQuery", JSONObject().apply {
                 put("version", 1)
-                put("sha256Hash", DETAIL_PERSISTED_QUERY_HASH)
+                put("sha256Hash", queryHash)
             })
         }
 
@@ -252,7 +282,7 @@ object AnimeRepository {
         val fullUrl = "$BASE_URL?variables=$encodedVars&extensions=$encodedExts"
 
         val reqBuilder = Request.Builder().url(fullUrl)
-        getHeaders().forEach { (k, v) -> reqBuilder.header(k, v) }
+        getHeaders(buildId).forEach { (k, v) -> reqBuilder.header(k, v) }
 
         httpClient.newCall(reqBuilder.build()).execute().use { resp ->
             val body = resp.body?.string() ?: ""
@@ -312,13 +342,22 @@ object AnimeRepository {
         require(showId.isNotBlank()) { "Show ID cannot be empty." }
         require(episodeString.isNotBlank()) { "Episode string cannot be empty." }
 
-        val effectiveLane = Decryptor.defaultLane
+        // Initialize/resolve configuration first
+        var config = MkissaConfigProvider.getConfig(context)
+        val queryHash = config.getOperationHash(OperationRegistry.OP_EPISODE)
+        val effectiveLane = OperationRegistry.resolveLaneForQuery(OperationRegistry.OP_EPISODE)
+            ?: throw IllegalStateException("Unsupported or unknown content lane for episode operation")
 
-        fun executeEpisodeQuery(bootstrap: CryptoBootstrap, explicitAaReq: String? = null): String {
+        fun executeEpisodeQuery(
+            bootstrap: CryptoBootstrap,
+            cfg: com.ghostreborn.akira.core.config.MkissaClientConfig,
+            explicitAaReq: String? = null
+        ): String {
             val effectiveAaReq = explicitAaReq ?: Decryptor.generateAaReq(
-                queryHash = EPISODE_PERSISTED_QUERY_HASH,
+                queryHash = queryHash,
                 bootstrap = bootstrap,
-                buildId = Decryptor.defaultBuildId
+                buildId = cfg.buildId,
+                config = cfg
             )
 
             val variablesObj = JSONObject().apply {
@@ -330,7 +369,7 @@ object AnimeRepository {
             val extensionsObj = JSONObject().apply {
                 put("persistedQuery", JSONObject().apply {
                     put("version", 1)
-                    put("sha256Hash", EPISODE_PERSISTED_QUERY_HASH)
+                    put("sha256Hash", queryHash)
                 })
                 put("k", effectiveLane)
                 put("aaReq", effectiveAaReq)
@@ -338,7 +377,7 @@ object AnimeRepository {
 
             val fullUrl = "$BASE_URL?variables=${Uri.encode(variablesObj.toString())}&extensions=${Uri.encode(extensionsObj.toString())}"
             val reqBuilder = Request.Builder().url(fullUrl)
-            getHeaders().forEach { (k, v) -> reqBuilder.header(k, v) }
+            getHeaders(cfg.buildId).forEach { (k, v) -> reqBuilder.header(k, v) }
 
             if (!authToken.isNullOrBlank()) {
                 val authHeader = if (authToken.startsWith("Bearer ", ignoreCase = true)) authToken else "Bearer $authToken"
@@ -354,9 +393,9 @@ object AnimeRepository {
             }
         }
 
-        // Step 1: Obtain bootstrap
-        var bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, authToken = authToken)
-        var responseStr = executeEpisodeQuery(bootstrap)
+        // Step 1: Obtain bootstrap for lane and resolved buildId
+        var bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, buildId = config.buildId, authToken = authToken, config = config)
+        var responseStr = executeEpisodeQuery(bootstrap, config)
 
         fun checkBuildIdError(resp: String): Boolean {
             val u = resp.uppercase()
@@ -373,22 +412,22 @@ object AnimeRepository {
                     u.contains("AACRYPTO EXPIRED") || u.contains("AACRYPTO_EXPIRED")
         }
 
-        // Recovery: Unknown build ID
+        // Recovery: Unknown build ID (max 1 retry)
         if (checkBuildIdError(responseStr)) {
             Log.d(TAG, "Unknown build id encountered. Invalidation retry...")
             MkissaConfigProvider.invalidate(context)
-            Decryptor.invalidateBootstrapCache()
+            Decryptor.invalidateBootstrapCacheForLane(effectiveLane)
 
             try {
-                val refreshedConfig = MkissaConfigProvider.getConfig(context, forceRefresh = true)
-                bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, authToken = authToken, forceRefresh = true, config = refreshedConfig)
+                config = MkissaConfigProvider.getConfig(context, forceRefresh = true)
+                bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, buildId = config.buildId, authToken = authToken, forceRefresh = true, config = config)
                 val freshAaReq = Decryptor.generateAaReq(
-                    queryHash = EPISODE_PERSISTED_QUERY_HASH,
+                    queryHash = config.getOperationHash(OperationRegistry.OP_EPISODE),
                     bootstrap = bootstrap,
-                    buildId = refreshedConfig.buildId,
-                    config = refreshedConfig
+                    buildId = config.buildId,
+                    config = config
                 )
-                responseStr = executeEpisodeQuery(bootstrap, freshAaReq)
+                responseStr = executeEpisodeQuery(bootstrap, config, freshAaReq)
             } catch (e: Exception) {
                 Log.e(TAG, "Build ID recovery retry failed: $e")
             }
@@ -398,21 +437,22 @@ object AnimeRepository {
             }
         }
 
-        // Recovery: Crypto expired / stale
+        // Recovery: Crypto expired / stale (max 1 retry)
         if (checkCryptoError(responseStr)) {
             Log.d(TAG, "AA_CRYPTO error. Retrying with fresh bootstrap...")
-            Decryptor.invalidateBootstrapCache()
+            Decryptor.invalidateBootstrapCacheForLane(effectiveLane)
 
             try {
-                bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, authToken = authToken, forceRefresh = true)
+                bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, buildId = config.buildId, authToken = authToken, forceRefresh = true, config = config)
                 val freshAaReq = Decryptor.generateAaReq(
-                    queryHash = EPISODE_PERSISTED_QUERY_HASH,
+                    queryHash = config.getOperationHash(OperationRegistry.OP_EPISODE),
                     bootstrap = bootstrap,
-                    buildId = Decryptor.defaultBuildId
+                    buildId = config.buildId,
+                    config = config
                 )
-                responseStr = executeEpisodeQuery(bootstrap, freshAaReq)
+                responseStr = executeEpisodeQuery(bootstrap, config, freshAaReq)
             } catch (e: Exception) {
-                Log.e(TAG, "Retry failed: $e")
+                Log.e(TAG, "Crypto retry failed: $e")
             }
         }
 
@@ -441,7 +481,8 @@ object AnimeRepository {
         val plainText = Decryptor.decrypt(
             payload = tobeparsed,
             partBBase64 = bootstrap.partB,
-            buildId = Decryptor.defaultBuildId
+            buildId = config.buildId,
+            config = config
         )
 
         val streams = StreamParser.parseStreams(plainText)

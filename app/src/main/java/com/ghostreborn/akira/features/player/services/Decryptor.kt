@@ -5,6 +5,7 @@ import android.util.Base64
 import android.util.Log
 import com.ghostreborn.akira.core.config.MkissaClientConfig
 import com.ghostreborn.akira.core.config.MkissaConfigProvider
+import com.ghostreborn.akira.core.config.OperationRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -16,6 +17,7 @@ import org.bouncycastle.crypto.params.KeyParameter
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -26,12 +28,14 @@ data class CryptoBootstrap(
     val graceMs: Long,
     val switchAt: Long,
     val partB: String,
-    val k: String
+    val k: String,
+    val buildId: String
 ) {
     companion object {
         fun fromJson(
             json: JSONObject,
-            defaultLane: String = "k7",
+            defaultLane: String = OperationRegistry.LANE_EPISODE,
+            buildId: String,
             currentTimeMs: Long? = null,
             config: MkissaClientConfig? = null
         ): CryptoBootstrap {
@@ -46,6 +50,12 @@ data class CryptoBootstrap(
             val partB = json.optString("partB", "")
             if (partB.isBlank()) throw IllegalStateException("Missing or blank 'partB' in bootstrap response.")
 
+            // Validate partB decodes to at least 32 bytes
+            val decodedPartB = com.ghostreborn.akira.core.crypto.SafeBase64.decode(partB.trim())
+            if (decodedPartB.size < 32) {
+                throw IllegalStateException("Decoded bootstrap partB has invalid length: ${decodedPartB.size} bytes (minimum 32 required).")
+            }
+
             val k = json.optString("k", defaultLane)
 
             return CryptoBootstrap(
@@ -54,7 +64,8 @@ data class CryptoBootstrap(
                 graceMs = graceMs,
                 switchAt = switchAt,
                 partB = partB,
-                k = k
+                k = k,
+                buildId = buildId
             )
         }
     }
@@ -62,15 +73,14 @@ data class CryptoBootstrap(
 
 object Decryptor {
     private const val TAG = "Decryptor"
-    const val BOOTSTRAP_URL = "https://api.mkissa.net/client-crypto/v1/bootstrap"
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
-    @Volatile
-    private var cachedBootstrap: CryptoBootstrap? = null
+    // Multi-lane, buildId-aware bootstrap cache: Key is "buildId:lane"
+    private val bootstrapCache = ConcurrentHashMap<String, CryptoBootstrap>()
 
     val defaultBuildId: String
         get() = MkissaConfigProvider.currentBuildId
@@ -79,7 +89,12 @@ object Decryptor {
         get() = MkissaConfigProvider.currentConfig.lane
 
     fun invalidateBootstrapCache() {
-        cachedBootstrap = null
+        Log.d(TAG, "Invalidating bootstrap cache across all lanes")
+        bootstrapCache.clear()
+    }
+
+    fun invalidateBootstrapCacheForLane(lane: String) {
+        bootstrapCache.keys.filter { it.endsWith(":$lane") }.forEach { bootstrapCache.remove(it) }
     }
 
     fun deriveSeed(buildId: String, config: MkissaClientConfig? = null): ByteArray {
@@ -98,8 +113,10 @@ object Decryptor {
         val seed = deriveSeed(buildId, cfg)
         val mask = ByteArray(32)
         val frags = cfg.fragments
+        require(frags.size >= 4) { "Configuration fragments must contain at least 4 items" }
         for (lane in 0 until 4) {
             val fragment = frags[lane]
+            require(fragment.size >= 8) { "Fragment $lane must be at least 8 bytes" }
             val offset = lane * 8
             for (pos in 0 until 8) {
                 val mix = (lane * cfg.fragMul + pos * cfg.fragAdd) and 0xFF
@@ -113,6 +130,7 @@ object Decryptor {
 
     fun calculateCurrentEpoch(currentTimeMs: Long? = null, epochMs: Long? = null): Long {
         val effectiveEpochMs = epochMs ?: MkissaConfigProvider.currentConfig.epochMs
+        require(effectiveEpochMs > 0) { "epochMs must be greater than 0" }
         val now = currentTimeMs ?: System.currentTimeMillis()
         return now / effectiveEpochMs
     }
@@ -121,6 +139,7 @@ object Decryptor {
         val cfg = MkissaConfigProvider.currentConfig
         val effectiveEpochMs = epochMs ?: cfg.epochMs
         val effectiveGraceMs = graceMs ?: cfg.graceMs
+        require(effectiveEpochMs > 0) { "epochMs must be greater than 0" }
         val now = currentTimeMs ?: System.currentTimeMillis()
         val epoch = calculateCurrentEpoch(now, effectiveEpochMs)
         return if (now - epoch * effectiveEpochMs < effectiveGraceMs && epoch > 0) {
@@ -145,6 +164,8 @@ object Decryptor {
         refererHost: String = "mkissa.to",
         config: MkissaClientConfig? = null
     ): String {
+        require(buildId.isNotBlank()) { "buildId cannot be blank for x-aa-boot" }
+        require(lane.isNotBlank()) { "lane cannot be blank for x-aa-boot" }
         val cfg = config ?: MkissaConfigProvider.currentConfig
         val mask = deriveMask(buildId, cfg)
         val keyGroup = resolveKeyGroup(refererHost)
@@ -176,7 +197,7 @@ object Decryptor {
 
     fun deriveKey(buildId: String, partBBase64: String, config: MkissaClientConfig? = null): ByteArray {
         val trimmed = partBBase64.trim()
-        val partB = Base64.decode(trimmed, Base64.DEFAULT)
+        val partB = com.ghostreborn.akira.core.crypto.SafeBase64.decode(trimmed)
         if (partB.size < 32) {
             throw IllegalArgumentException("partB decoded length (${partB.size}) is less than 32 bytes.")
         }
@@ -199,10 +220,11 @@ object Decryptor {
         val effectiveConfig = config ?: MkissaConfigProvider.getConfig(context, forceRefresh = forceRefresh)
         val effectiveLane = lane ?: effectiveConfig.lane
         val effectiveBuildId = buildId ?: effectiveConfig.buildId
+        val cacheKey = "$effectiveBuildId:$effectiveLane"
 
         val now = System.currentTimeMillis()
-        val cached = cachedBootstrap
-        if (!forceRefresh && cached != null && cached.k == effectiveLane && now < cached.switchAt) {
+        val cached = bootstrapCache[cacheKey]
+        if (!forceRefresh && cached != null && cached.k == effectiveLane && cached.buildId == effectiveBuildId && now < cached.switchAt) {
             return@withContext cached
         }
 
@@ -211,7 +233,9 @@ object Decryptor {
             calculateCurrentEpoch(now, effectiveConfig.epochMs)
         )
 
+        val bootstrapBaseUrl = effectiveConfig.endpoints.bootstrapBaseUrl
         var lastError: Exception? = null
+
         for (candidateEpoch in epochCandidates) {
             try {
                 val xAaBoot = generateXAaBoot(
@@ -220,12 +244,12 @@ object Decryptor {
                     epoch = candidateEpoch,
                     config = effectiveConfig
                 )
-                val url = "$BOOTSTRAP_URL?buildId=$effectiveBuildId&k=$effectiveLane"
+                val url = "$bootstrapBaseUrl?buildId=$effectiveBuildId&k=$effectiveLane"
 
                 val reqBuilder = Request.Builder()
                     .url(url)
-                    .header("Origin", "https://mkissa.to")
-                    .header("Referer", "https://mkissa.to/")
+                    .header("Origin", effectiveConfig.endpoints.appOrigin)
+                    .header("Referer", effectiveConfig.endpoints.appReferer)
                     .header("x-build-id", effectiveBuildId)
                     .header("x-aa-boot", xAaBoot)
 
@@ -244,10 +268,17 @@ object Decryptor {
                     val bootstrap = CryptoBootstrap.fromJson(
                         json = json,
                         defaultLane = effectiveLane,
+                        buildId = effectiveBuildId,
                         currentTimeMs = now,
                         config = effectiveConfig
                     )
-                    cachedBootstrap = bootstrap
+
+                    // Verify returned lane matches requested lane
+                    if (bootstrap.k != effectiveLane) {
+                        throw IllegalStateException("Bootstrap lane mismatch: expected $effectiveLane but server returned ${bootstrap.k}")
+                    }
+
+                    bootstrapCache[cacheKey] = bootstrap
                     Log.d(TAG, "Bootstrap received: epoch=${bootstrap.epoch}, lane=${bootstrap.k}, switchAt=${bootstrap.switchAt}")
                     return@withContext bootstrap
                 }
@@ -266,7 +297,10 @@ object Decryptor {
         currentTimeMs: Long? = null,
         config: MkissaClientConfig? = null
     ): String {
-        val effectiveBuildId = buildId ?: MkissaConfigProvider.currentBuildId
+        require(OperationRegistry.isValidSha256Hash(queryHash)) {
+            "Invalid queryHash format: must be 64 lowercase hex characters"
+        }
+        val effectiveBuildId = buildId ?: bootstrap.buildId
         val now = currentTimeMs ?: System.currentTimeMillis()
         val ts = (now / 300000L) * 300000L
         val epoch = bootstrap.epoch
@@ -295,7 +329,7 @@ object Decryptor {
         cipher.init(true, params)
 
         val encryptedWithTag = ByteArray(cipher.getOutputSize(plaintextBytes.size))
-        var len = cipher.processBytes(plaintextBytes, 0, plaintextBytes.size, encryptedWithTag, 0)
+        val len = cipher.processBytes(plaintextBytes, 0, plaintextBytes.size, encryptedWithTag, 0)
         cipher.doFinal(encryptedWithTag, len)
 
         // byte 0 = 0x01, bytes 1..12 = IV, remaining = ciphertext + tag
@@ -304,7 +338,7 @@ object Decryptor {
         System.arraycopy(iv, 0, output, 1, 12)
         System.arraycopy(encryptedWithTag, 0, output, 13, encryptedWithTag.size)
 
-        return Base64.encodeToString(output, Base64.NO_WRAP)
+        return com.ghostreborn.akira.core.crypto.SafeBase64.encodeToString(output)
     }
 
     fun decrypt(
@@ -317,7 +351,7 @@ object Decryptor {
         val trimmed = payload.trim()
         require(trimmed.isNotEmpty()) { "Payload cannot be empty" }
 
-        val raw = Base64.decode(trimmed, Base64.DEFAULT)
+        val raw = com.ghostreborn.akira.core.crypto.SafeBase64.decode(trimmed)
         if (raw.isEmpty()) throw IllegalStateException("Decoded payload is empty")
         if (raw[0].toInt() != 1) throw IllegalStateException("Unsupported payload version (${raw[0]}). Only version 1 is supported.")
         if (raw.size < 1 + 12 + 16) throw IllegalStateException("Payload buffer too short (${raw.size} bytes).")

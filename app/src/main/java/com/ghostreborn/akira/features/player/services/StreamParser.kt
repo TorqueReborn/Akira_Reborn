@@ -9,19 +9,9 @@ import org.json.JSONObject
 object StreamParser {
     private const val TAG = "StreamParser"
 
-    val knownIframeHosts = listOf(
-        "filemoon",
-        "ok.ru",
-        "odnoklassniki",
-        "vidguard",
-        "mp4upload.com",
-        "streamwish",
-        "doodstream",
-        "dood.",
-        "voe.sx",
-        "streamtape",
-        "mixdrop"
-    )
+    val knownIframeHosts: List<String>
+        get() = com.ghostreborn.akira.core.config.MkissaConfigProvider.currentEndpoints.supportedStreamingHosts
+
 
     fun parseStreams(decryptedJson: String): List<StreamSource> {
         val trimmed = decryptedJson.trim()

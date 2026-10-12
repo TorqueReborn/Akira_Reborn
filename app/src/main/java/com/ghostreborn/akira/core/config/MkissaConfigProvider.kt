@@ -1,8 +1,8 @@
 package com.ghostreborn.akira.core.config
 
 import android.content.Context
-import android.util.Base64
 import android.util.Log
+import com.ghostreborn.akira.core.crypto.SafeBase64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 
 data class MkissaClientConfig(
     val buildId: String,
-    val lane: String = "k7",
+    val lane: String = OperationRegistry.LANE_EPISODE,
     val epochMs: Long = 604800000L,
     val graceMs: Long = 86400000L,
     val saltMul: Int = 5,
@@ -26,13 +26,41 @@ data class MkissaClientConfig(
     val joinDelimiter: String = "|",
     val parts: List<String> = listOf("buildId", "group", "lane", "epoch", "host"),
     val fragments: List<ByteArray>,
+    val operationHashes: Map<String, String> = mapOf(
+        OperationRegistry.OP_BROWSE to OperationRegistry.DEFAULT_BROWSE_HASH,
+        OperationRegistry.OP_TOP_RANKED to OperationRegistry.DEFAULT_TOP_RANKED_HASH,
+        OperationRegistry.OP_DETAIL to OperationRegistry.DEFAULT_DETAIL_HASH,
+        OperationRegistry.OP_EPISODE to OperationRegistry.DEFAULT_EPISODE_HASH
+    ),
+    val endpoints: MkissaEndpoints = MkissaEndpoints.default(),
     val fetchedAtMs: Long
 ) {
+    fun getOperationHash(operationName: String): String {
+        val hash = operationHashes[operationName]
+        if (OperationRegistry.isValidSha256Hash(hash)) {
+            return hash!!
+        }
+        return when (operationName) {
+            OperationRegistry.OP_BROWSE -> OperationRegistry.DEFAULT_BROWSE_HASH
+            OperationRegistry.OP_TOP_RANKED -> OperationRegistry.DEFAULT_TOP_RANKED_HASH
+            OperationRegistry.OP_DETAIL -> OperationRegistry.DEFAULT_DETAIL_HASH
+            OperationRegistry.OP_EPISODE -> OperationRegistry.DEFAULT_EPISODE_HASH
+            else -> throw IllegalArgumentException("Unknown GraphQL operation: $operationName")
+        }
+    }
+
     companion object {
+        val DEFAULT_FRAGMENTS: List<ByteArray> = listOf(
+            SafeBase64.decode("o55/m8U/4FY="),
+            SafeBase64.decode("9lYtQjBCN5s="),
+            SafeBase64.decode("s3mBmnFuzkQ="),
+            SafeBase64.decode("H8tdZAar+nQ=")
+        )
+
         fun fallback(): MkissaClientConfig {
             return MkissaClientConfig(
                 buildId = "179",
-                lane = "k7",
+                lane = OperationRegistry.LANE_EPISODE,
                 epochMs = 604800000L,
                 graceMs = 86400000L,
                 saltMul = 5,
@@ -42,12 +70,14 @@ data class MkissaClientConfig(
                 bootPrefix = "KoCGqjW:",
                 joinDelimiter = "|",
                 parts = listOf("buildId", "group", "lane", "epoch", "host"),
-                fragments = listOf(
-                    Base64.decode("o55/m8U/4FY=", Base64.DEFAULT),
-                    Base64.decode("9lYtQjBCN5s=", Base64.DEFAULT),
-                    Base64.decode("s3mBmnFuzkQ=", Base64.DEFAULT),
-                    Base64.decode("H8tdZAar+nQ=", Base64.DEFAULT)
+                fragments = DEFAULT_FRAGMENTS,
+                operationHashes = mapOf(
+                    OperationRegistry.OP_BROWSE to OperationRegistry.DEFAULT_BROWSE_HASH,
+                    OperationRegistry.OP_TOP_RANKED to OperationRegistry.DEFAULT_TOP_RANKED_HASH,
+                    OperationRegistry.OP_DETAIL to OperationRegistry.DEFAULT_DETAIL_HASH,
+                    OperationRegistry.OP_EPISODE to OperationRegistry.DEFAULT_EPISODE_HASH
                 ),
+                endpoints = MkissaEndpoints.default(),
                 fetchedAtMs = 0L
             )
         }
@@ -57,7 +87,10 @@ data class MkissaClientConfig(
             val frags = mutableListOf<ByteArray>()
             if (fragsArray != null) {
                 for (i in 0 until fragsArray.length()) {
-                    frags.add(Base64.decode(fragsArray.getString(i), Base64.DEFAULT))
+                    val decoded = SafeBase64.decode(fragsArray.getString(i))
+                    if (decoded.size == 8) {
+                        frags.add(decoded)
+                    }
                 }
             }
 
@@ -71,9 +104,32 @@ data class MkissaClientConfig(
                 partsList.addAll(listOf("buildId", "group", "lane", "epoch", "host"))
             }
 
+            val hashes = mutableMapOf<String, String>()
+            val hashesObj = json.optJSONObject("operationHashes")
+            if (hashesObj != null) {
+                val keys = hashesObj.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    val v = hashesObj.optString(k)
+                    if (OperationRegistry.isValidSha256Hash(v)) {
+                        hashes[k] = v
+                    }
+                }
+            }
+            if (!hashes.containsKey(OperationRegistry.OP_BROWSE)) hashes[OperationRegistry.OP_BROWSE] = OperationRegistry.DEFAULT_BROWSE_HASH
+            if (!hashes.containsKey(OperationRegistry.OP_TOP_RANKED)) hashes[OperationRegistry.OP_TOP_RANKED] = OperationRegistry.DEFAULT_TOP_RANKED_HASH
+            if (!hashes.containsKey(OperationRegistry.OP_DETAIL)) hashes[OperationRegistry.OP_DETAIL] = OperationRegistry.DEFAULT_DETAIL_HASH
+            if (!hashes.containsKey(OperationRegistry.OP_EPISODE)) hashes[OperationRegistry.OP_EPISODE] = OperationRegistry.DEFAULT_EPISODE_HASH
+
+            val endpointsObj = json.optJSONObject("endpoints")
+            val endpoints = MkissaEndpoints.fromJson(endpointsObj)
+
+            val rawBuildId = json.optString("buildId", "")
+            val validBuildId = if (rawBuildId.isNotBlank() && rawBuildId.matches(Regex("""^\d+$"""))) rawBuildId else "179"
+
             return MkissaClientConfig(
-                buildId = json.optString("buildId", "179"),
-                lane = json.optString("lane", "k7"),
+                buildId = validBuildId,
+                lane = json.optString("lane", OperationRegistry.LANE_EPISODE),
                 epochMs = json.optLong("epochMs", 604800000L),
                 graceMs = json.optLong("graceMs", 86400000L),
                 saltMul = json.optInt("saltMul", 5),
@@ -83,7 +139,9 @@ data class MkissaClientConfig(
                 bootPrefix = json.optString("bootPrefix", "KoCGqjW:"),
                 joinDelimiter = json.optString("joinDelimiter", "|"),
                 parts = partsList,
-                fragments = if (frags.isNotEmpty()) frags else fallback().fragments,
+                fragments = if (frags.size == 4) frags else DEFAULT_FRAGMENTS,
+                operationHashes = hashes,
+                endpoints = endpoints,
                 fetchedAtMs = json.optLong("fetchedAt", 0L)
             )
         }
@@ -107,9 +165,14 @@ data class MkissaClientConfig(
         json.put("parts", partsArr)
 
         val fragsArr = JSONArray()
-        fragments.forEach { fragsArr.put(Base64.encodeToString(it, Base64.NO_WRAP)) }
+        fragments.forEach { fragsArr.put(SafeBase64.encodeToString(it)) }
         json.put("fragments", fragsArr)
 
+        val hashesObj = JSONObject()
+        operationHashes.forEach { (k, v) -> hashesObj.put(k, v) }
+        json.put("operationHashes", hashesObj)
+
+        json.put("endpoints", endpoints.toJson())
         json.put("fetchedAt", fetchedAtMs)
         return json
     }
@@ -118,15 +181,19 @@ data class MkissaClientConfig(
 object MkissaConfigProvider {
     private const val TAG = "MkissaConfig"
     private const val PREF_NAME = "mkissa_config_pref"
-    private const val PREF_KEY = "mkissa_client_config_v1"
+    private const val PREF_KEY = "mkissa_client_config_v3"
     private const val CACHE_TTL_MS = 6 * 60 * 60 * 1000L // 6 hours
 
     const val PRIMARY_VERSION_URL = "https://mkissa.to/_app/version.json"
     const val SECONDARY_VERSION_URL = "https://cdn.mkissa.net/all/mk/_app/version.json"
 
+    // Frontend HTML entry URL to discover immutable script bundles
+    const val FRONTEND_INDEX_URL = "https://mkissa.to/"
+    const val CDN_BASE_URL = "https://cdn.mkissa.net"
+
     private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(12, TimeUnit.SECONDS)
+        .readTimeout(12, TimeUnit.SECONDS)
         .build()
 
     @Volatile
@@ -138,6 +205,9 @@ object MkissaConfigProvider {
 
     val currentConfig: MkissaClientConfig
         get() = memoryConfig ?: MkissaClientConfig.fallback()
+
+    val currentEndpoints: MkissaEndpoints
+        get() = currentConfig.endpoints
 
     suspend fun invalidate(context: Context) {
         Log.d(TAG, "Invalidating cached configuration")
@@ -219,9 +289,13 @@ object MkissaConfigProvider {
         }
     }
 
-    private fun discoverFromNetwork(): MkissaClientConfig {
+    /**
+     * Executes authoritative dynamic discovery of build ID, bundle metadata, and operation hashes.
+     */
+    fun discoverFromNetwork(): MkissaClientConfig {
         var discoveredBuildId: String? = null
 
+        // Step 1: Version endpoint discovery
         val urls = listOf(PRIMARY_VERSION_URL, SECONDARY_VERSION_URL)
         for (url in urls) {
             try {
@@ -236,7 +310,7 @@ object MkissaConfigProvider {
                         val body = response.body?.string()?.trim() ?: ""
                         val json = JSONObject(body)
                         val v = json.optString("version")
-                        if (v.matches(Regex("^\\d+$"))) {
+                        if (v.matches(Regex("""^\d+$"""))) {
                             discoveredBuildId = v
                             Log.d(TAG, "Discovered build ID $v from $url")
                             return@use
@@ -253,16 +327,106 @@ object MkissaConfigProvider {
             throw IllegalStateException("Unable to discover Mkissa build ID from version endpoints.")
         }
 
+        // Step 2: Attempt bundle metadata inspection if accessible
+        val discoveredHashes = mutableMapOf<String, String>()
+        try {
+            inspectFrontendBundle(discoveredHashes)
+        } catch (e: Exception) {
+            Log.d(TAG, "Frontend bundle inspection skipped: ${e.message}")
+        }
+
+        val fallback = MkissaClientConfig.fallback()
+
+        // Merge discovered hashes with validated fallbacks
+        val finalHashes = fallback.operationHashes.toMutableMap()
+        discoveredHashes.forEach { (k, v) ->
+            if (OperationRegistry.isValidSha256Hash(v)) {
+                finalHashes[k] = v
+            }
+        }
+
         return MkissaClientConfig(
             buildId = discoveredBuildId,
-            lane = "k7",
-            fragments = listOf(
-                Base64.decode("o55/m8U/4FY=", Base64.DEFAULT),
-                Base64.decode("9lYtQjBCN5s=", Base64.DEFAULT),
-                Base64.decode("s3mBmnFuzkQ=", Base64.DEFAULT),
-                Base64.decode("H8tdZAar+nQ=", Base64.DEFAULT)
-            ),
+            lane = fallback.lane,
+            epochMs = fallback.epochMs,
+            graceMs = fallback.graceMs,
+            saltMul = fallback.saltMul,
+            saltAdd = fallback.saltAdd,
+            fragMul = fallback.fragMul,
+            fragAdd = fallback.fragAdd,
+            bootPrefix = fallback.bootPrefix,
+            joinDelimiter = fallback.joinDelimiter,
+            parts = fallback.parts,
+            fragments = fallback.fragments,
+            operationHashes = finalHashes,
+            endpoints = fallback.endpoints,
             fetchedAtMs = System.currentTimeMillis()
         )
+    }
+
+    /**
+     * Inspects the frontend index HTML to locate the core application script bundle and extract
+     * query hashes if the bundle format matches expectations.
+     */
+    private fun inspectFrontendBundle(outHashes: MutableMap<String, String>) {
+        val req = Request.Builder()
+            .url(FRONTEND_INDEX_URL)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .build()
+
+        val html = httpClient.newCall(req).execute().use { resp ->
+            if (resp.isSuccessful) resp.body?.string() ?: "" else ""
+        }
+        if (html.isBlank()) return
+
+        // Look for app bundle script: e.g. /_app/immutable/entry/app.*.js or chunks
+        val scriptMatch = Regex("""src="([^"]*?/_app/immutable/[^"]*?\.js)"""").findAll(html)
+        for (m in scriptMatch) {
+            val scriptPath = m.groupValues[1]
+            val fullScriptUrl = if (scriptPath.startsWith("http://") || scriptPath.startsWith("https://")) {
+                scriptPath
+            } else if (scriptPath.startsWith("/")) {
+                "$CDN_BASE_URL$scriptPath"
+            } else {
+                "$CDN_BASE_URL/$scriptPath"
+            }
+
+            try {
+                val scriptReq = Request.Builder()
+                    .url(fullScriptUrl)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .build()
+
+                val jsContent = httpClient.newCall(scriptReq).execute().use { resp ->
+                    if (resp.isSuccessful) resp.body?.string() ?: "" else ""
+                }
+
+                if (jsContent.contains("persistedQuery") || jsContent.contains("sha256Hash")) {
+                    parseHashesFromBundle(jsContent, outHashes)
+                    if (outHashes.isNotEmpty()) break
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Parses operation query hashes from JS bundle text without breaking on unknown tokens.
+     */
+    fun parseHashesFromBundle(jsContent: String, outHashes: MutableMap<String, String>) {
+        // Pattern: persistedQuery:{version:1,sha256Hash:"..."}
+        val pqRegex = Regex("""persistedQuery\s*:\s*\{\s*version\s*:\s*1\s*,\s*sha256Hash\s*:\s*["']([a-f0-9]{64})["']""", RegexOption.IGNORE_CASE)
+        val matches = pqRegex.findAll(jsContent)
+        for (m in matches) {
+            val hash = m.groupValues[1].lowercase()
+            if (OperationRegistry.isValidSha256Hash(hash)) {
+                // Determine which operation matches by inspecting preceding context
+                val start = (m.range.first - 400).coerceAtLeast(0)
+                val snippet = jsContent.substring(start, m.range.first)
+                val lane = OperationRegistry.resolveLaneForQuery(snippet)
+                if (lane == OperationRegistry.LANE_EPISODE) {
+                    outHashes[OperationRegistry.OP_EPISODE] = hash
+                }
+            }
+        }
     }
 }

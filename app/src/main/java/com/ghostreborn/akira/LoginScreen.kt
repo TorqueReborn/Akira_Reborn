@@ -63,7 +63,8 @@ fun LoginScreen(
                 val authResult = AuthRepository.authenticate(
                     usernameOrEmail = email.trim(),
                     rawPassword = password,
-                    recaptchCode = turnstileToken
+                    recaptchCode = turnstileToken,
+                    context = context
                 )
 
                 TokenManager.saveAuthData(

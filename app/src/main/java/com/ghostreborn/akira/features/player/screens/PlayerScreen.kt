@@ -125,8 +125,8 @@ fun PlayerScreen(
             .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:155.0) Gecko/20100101 Firefox/155.0")
             .setDefaultRequestProperties(
                 mapOf(
-                    "Referer" to "https://youtu-chan.com/",
-                    "Origin" to "https://youtu-chan.com"
+                    "Referer" to com.ghostreborn.akira.core.config.MkissaConfigProvider.currentEndpoints.authReferer,
+                    "Origin" to com.ghostreborn.akira.core.config.MkissaConfigProvider.currentEndpoints.authOrigin
                 )
             )
 
