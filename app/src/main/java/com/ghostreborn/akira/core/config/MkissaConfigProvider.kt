@@ -135,8 +135,12 @@ data class MkissaClientConfig(
             val effectiveJoin = json.optString("joinDelimiter", fallbackCfg.joinDelimiter)
             val effectiveBootPrefix = json.optString("bootPrefix", fallbackCfg.bootPrefix)
 
+            // Strict build ID consistency: If fallback fragments are substituted because the stored/parsed fragments
+            // were missing or corrupted, do not allow an arbitrary build ID to be combined with fallback parameters.
+            val finalBuildId = if (frags.size == 4 && partsList.isNotEmpty()) validBuildId else fallbackCfg.buildId
+
             return MkissaClientConfig(
-                buildId = validBuildId,
+                buildId = finalBuildId,
                 lane = json.optString("lane", OperationRegistry.LANE_EPISODE),
                 epochMs = json.optLong("epochMs", fallbackCfg.epochMs),
                 graceMs = json.optLong("graceMs", fallbackCfg.graceMs),
@@ -297,24 +301,39 @@ object MkissaConfigProvider {
         }
     }
 
+    @Volatile
+    private var lastKnownEtag: String? = null
+
     /**
      * Executes authoritative dynamic discovery of build ID, bundle metadata, and cryptographic parameters.
      */
     fun discoverFromNetwork(): MkissaClientConfig {
         var discoveredBuildId: String? = null
 
-        // Step 1: Version endpoint discovery
+        // Step 1: Version endpoint discovery with conditional revalidation (ETag / If-None-Match)
         val urls = listOf(PRIMARY_VERSION_URL, SECONDARY_VERSION_URL)
         for (url in urls) {
             try {
-                val request = Request.Builder()
+                val reqBuilder = Request.Builder()
                     .url(url)
                     .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                     .header("Accept", "application/json, text/plain, */*")
-                    .build()
 
-                httpClient.newCall(request).execute().use { response ->
+                val currentEtag = lastKnownEtag
+                if (!currentEtag.isNullOrBlank() && memoryConfig != null) {
+                    reqBuilder.header("If-None-Match", currentEtag)
+                }
+
+                httpClient.newCall(reqBuilder.build()).execute().use { response ->
+                    if (response.code == 304 && memoryConfig != null) {
+                        Log.d(TAG, "Version endpoint returned HTTP 304 Not Modified; preserving current config")
+                        return memoryConfig!!.copy(fetchedAtMs = System.currentTimeMillis())
+                    }
                     if (response.isSuccessful) {
+                        val etagHeader = response.header("ETag")
+                        if (!etagHeader.isNullOrBlank()) {
+                            lastKnownEtag = etagHeader
+                        }
                         val body = response.body?.string()?.trim() ?: ""
                         val json = JSONObject(body)
                         val v = json.optString("version")
@@ -373,8 +392,8 @@ object MkissaConfigProvider {
                 endpoints = fallback.endpoints,
                 fetchedAtMs = System.currentTimeMillis()
             )
-        } else {
-            // If bundle inspection was blocked or not recoverable, use consistent fallback parameters for the discovered build
+        } else if (discoveredBuildId == fallback.buildId) {
+            // Safe: discovered build matches verified fallback release
             MkissaClientConfig(
                 buildId = discoveredBuildId,
                 lane = fallback.lane,
@@ -391,6 +410,12 @@ object MkissaConfigProvider {
                 operationHashes = finalHashes,
                 endpoints = fallback.endpoints,
                 fetchedAtMs = System.currentTimeMillis()
+            )
+        } else {
+            // Strict version boundary: Never mix a newer unknown build ID with stale cryptographic parameters from an older build!
+            throw IllegalStateException(
+                "Discovered new build ID '$discoveredBuildId' but frontend bundle parsing could not extract " +
+                "its matching cryptographic parameters. Refusing to mix incompatible build configurations."
             )
         }
     }

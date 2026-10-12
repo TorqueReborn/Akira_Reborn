@@ -5,8 +5,8 @@ import java.util.regex.Pattern
 
 /**
  * Robust extractor for build-dependent cryptographic parameters from Mkissa frontend bundles.
- * Parses the obfuscated client crypto chunk (e.g. BQqtsmMs.js) using the exact string deobfuscation
- * mechanism proven in the working reference build.
+ * Parses the obfuscated client crypto chunk (e.g. BQqtsmMs.js) using deterministic string deobfuscation
+ * and an arithmetic expression parser handling signed integers, multiplication, and addition.
  */
 data class ExtractedCryptoParams(
     val saltMul: Int,
@@ -24,38 +24,93 @@ data class ExtractedCryptoParams(
 object MkissaBundleParser {
 
     /**
-     * Evaluates simple arithmetic expressions like "-2*97429255+519*-1699713+1681809557"
+     * Evaluates signed arithmetic expressions present in frontend bundles, e.g.:
+     * "1870*-1+-1*-9874+-7663" -> 341
+     * "-2*97429255+519*-1699713+1681809557" -> 604800000
+     * Unary +/- signs, binary *, /, +, -, and whitespaces are handled strictly.
+     * Rejects empty or invalid syntax safely without arbitrary eval.
      */
     fun evaluateArithmetic(expr: String): Long {
         val clean = expr.replace(" ", "")
-        val terms = mutableListOf<String>()
-        var cur = StringBuilder()
-        var i = 0
-        while (i < clean.length) {
-            val c = clean[i]
-            if ((c == '+' || c == '-') && cur.isNotEmpty() && cur.last() != '*' && cur.last() != '/') {
-                terms.add(cur.toString())
-                cur = StringBuilder()
-            }
-            cur.append(c)
-            i++
-        }
-        if (cur.isNotEmpty()) terms.add(cur.toString())
+        require(clean.isNotBlank()) { "Arithmetic expression cannot be empty" }
 
-        var total = 0L
-        for (term in terms) {
-            val trimmed = term.trim()
-            if (trimmed.isEmpty()) continue
-            val factors = trimmed.split("*")
-            var product = 1L
-            for (f in factors) {
-                if (f.isNotEmpty()) {
-                    product *= f.toLong()
+        val tokens = mutableListOf<Any>() // Long or Char ('+', '-', '*', '/')
+        var i = 0
+        val n = clean.length
+
+        while (i < n) {
+            val c = clean[i]
+            if (c == '+' || c == '-' || c == '*' || c == '/') {
+                val isPrevOp = tokens.isEmpty() || (tokens.last() is Char)
+                if ((c == '+' || c == '-') && isPrevOp) {
+                    val sign = if (c == '+') 1L else -1L
+                    i++
+                    val start = i
+                    while (i < n && clean[i].isDigit()) {
+                        i++
+                    }
+                    require(start < i) { "Expected number following unary '$c' at position $start in expression '$expr'" }
+                    val num = sign * clean.substring(start, i).toLong()
+                    tokens.add(num)
+                } else {
+                    tokens.add(c)
+                    i++
                 }
+            } else if (c.isDigit()) {
+                val start = i
+                while (i < n && clean[i].isDigit()) {
+                    i++
+                }
+                tokens.add(clean.substring(start, i).toLong())
+            } else {
+                throw IllegalArgumentException("Unsupported character '$c' in arithmetic expression '$expr'")
             }
-            total += product
         }
-        return total
+
+        // Pass 1: Multiplication and Division (left to right)
+        val values = mutableListOf<Long>()
+        val addSubOps = mutableListOf<Char>()
+        var idx = 0
+
+        while (idx < tokens.size) {
+            val tok = tokens[idx]
+            when (tok) {
+                is Long -> values.add(tok)
+                '*', '/' -> {
+                    idx++
+                    require(idx < tokens.size && tokens[idx] is Long) { "Expected number after operator '$tok'" }
+                    val nextVal = tokens[idx] as Long
+                    require(values.isNotEmpty()) { "Missing left operand for operator '$tok'" }
+                    val prevVal = values.removeAt(values.size - 1)
+                    if (tok == '*') {
+                        values.add(prevVal * nextVal)
+                    } else {
+                        require(nextVal != 0L) { "Division by zero in expression '$expr'" }
+                        values.add(prevVal / nextVal)
+                    }
+                }
+                '+', '-' -> addSubOps.add(tok as Char)
+                else -> throw IllegalArgumentException("Unexpected token $tok in expression '$expr'")
+            }
+            idx++
+        }
+
+        require(values.isNotEmpty()) { "No values to evaluate in expression '$expr'" }
+        require(values.size == addSubOps.size + 1) { "Mismatched operators and operands in expression '$expr'" }
+
+        // Pass 2: Addition and Subtraction (left to right)
+        var result = values[0]
+        for (k in addSubOps.indices) {
+            val op = addSubOps[k]
+            val nextVal = values[k + 1]
+            if (op == '+') {
+                result += nextVal
+            } else {
+                result -= nextVal
+            }
+        }
+
+        return result
     }
 
     /**
@@ -132,9 +187,11 @@ object MkissaBundleParser {
 
             val checkMatcher = Pattern.compile("""if\(([^=]+)===\s*t\)\s*break""").matcher(iifeCode)
             if (!checkMatcher.find()) return null
+            val checkExpr = checkMatcher.group(1)?.trim() ?: return null
 
             // 4. Simulate the shuffle loop
             val arr = ArrayList(stringArray)
+
             fun parseLeadingInt(str: String): Int {
                 val m = Pattern.compile("""^-?\d+""").matcher(str)
                 return if (m.find()) m.group(0)?.toInt() ?: 0 else 0
@@ -148,27 +205,44 @@ object MkissaBundleParser {
             fun n(o: Int): String = qa(o - nSub)
             fun a(o: Int): String = qa(o - aSub)
 
-            fun evaluateCheck(): Long {
-                val r459 = rTable["_0x459f97"] ?: 87
-                val r90 = rTable["_0x90dfba"] ?: 11
-                val r160 = rTable["_0x160be5"] ?: 119
-                val r59 = rTable["_0x59ff6d"] ?: 63
-                val r33 = rTable["_0x33dd48"] ?: 292
-                val r24 = rTable["_0x24ba69"] ?: 581
-                val r4c = rTable["_0x4c76c2"] ?: 307
-                val r5c = rTable["_0x5c1e15"] ?: 221
-                val rf2 = rTable["_0xf2d97c"] ?: 354
-                val r15 = rTable["_0x155d33"] ?: 91
-                val r4b = rTable["_0x4bf52c"] ?: 73
+            // Generic evaluator for check expression terms:
+            // Term pattern: [sign]parseInt(fn(arg1, arg2))/div [* [sign]parseInt(fn(arg1, arg2))/div]
+            fun evalCall(callStr: String): Long {
+                val cleanCall = callStr.replace(" ", "").trim('(', ')')
+                val m = Pattern.compile("""(-?)parseInt\((a|n)\(([^)]+)\)\)/(\d+)""").matcher(cleanCall)
+                if (!m.find()) return 0L
+                val sign = if (m.group(1) == "-") -1L else 1L
+                val fnType = m.group(2)
+                val argsRaw = (m.group(3) ?: "").split(",")
+                val div = (m.group(4) ?: "1").toLong()
 
-                val v1 = parseLeadingInt(a(35)) / 1L
-                val v2 = -parseLeadingInt(a(-r90)) / 2L * (-parseLeadingInt(n(468)) / 3L)
-                val v3 = -parseLeadingInt(a(218)) / 4L * (-parseLeadingInt(a(r59)) / 5L)
-                val v4 = parseLeadingInt(n(r33)) / 6L
-                val v5 = -parseLeadingInt(n(460)) / 7L * (parseLeadingInt(n(r4c)) / 8L)
-                val v6 = -parseLeadingInt(n(rf2)) / 9L * (-parseLeadingInt(a(6)) / 10L)
-                val v7 = -parseLeadingInt(a(r4b)) / 11L
-                return v1 + v2 + v3 + v4 + v5 + v6 + v7
+                fun resolveArg(rawArg: String): Int {
+                    var exprA = rawArg.trim()
+                    for ((k, v) in rTable) {
+                        exprA = exprA.replace("r.$k", v.toString())
+                    }
+                    return evaluateArithmetic(exprA).toInt()
+                }
+
+                // In JS: a(s, o) returns qa(o - aSub). The 2nd argument 'o' determines the string lookup index!
+                val oArg = if (argsRaw.size > 1) resolveArg(argsRaw[1]) else resolveArg(argsRaw[0])
+                val rawStr = if (fnType == "a") a(oArg) else n(oArg)
+                val num = parseLeadingInt(rawStr).toLong()
+                return sign * (num / div)
+            }
+
+            fun evaluateCheck(): Long {
+                val terms = checkExpr.split("+")
+                var total = 0L
+                for (termStr in terms) {
+                    val factors = termStr.split("*")
+                    var prod = 1L
+                    for (f in factors) {
+                        prod *= evalCall(f)
+                    }
+                    total += prod
+                }
+                return total
             }
 
             for (step in 0 until arr.size) {
@@ -180,8 +254,30 @@ object MkissaBundleParser {
                 arr.add(arr.removeAt(0))
             }
 
-            fun At(e: Int): String = qa(e - 438)
-            fun lr(e: Int): String = qa(e - 452)
+            // Dynamically discover all accessor helper functions like `function At(e){return qa(e-438)}`
+            val helperOffsetMap = mutableMapOf<String, Int>()
+            val helperMatcher = Pattern.compile("""function\s+([A-Za-z0-9_]+)\(e\)\s*\{\s*return\s+qa\(e\s*-\s*([^\)]+)\)\s*\}""").matcher(jsContent)
+            while (helperMatcher.find()) {
+                val fnName = helperMatcher.group(1) ?: continue
+                val offExpr = helperMatcher.group(2) ?: continue
+                val offVal = evaluateArithmetic(offExpr).toInt()
+                helperOffsetMap[fnName] = offVal
+            }
+
+            fun resolveHelperCall(fnName: String, arg: Int): String {
+                val offset = helperOffsetMap[fnName] ?: when (fnName) {
+                    "At" -> 438
+                    "lr" -> 452
+                    else -> 0
+                }
+                return qa(arg - offset)
+            }
+
+            val helperNamesPattern = if (helperOffsetMap.isNotEmpty()) {
+                helperOffsetMap.keys.joinToString("|")
+            } else {
+                "At|lr"
+            }
 
             // 5. Extract Df params
             val paramMatcher = Pattern.compile("""saltMul:\s*(\d+)\s*,\s*saltAdd:\s*(\d+)\s*,\s*fragMul:\s*(\d+)\s*,\s*fragAdd:\s*(\d+)""").matcher(jsContent)
@@ -205,13 +301,14 @@ object MkissaBundleParser {
             val fragments = mutableListOf<ByteArray>()
             if (mMatcher.find()) {
                 val fragExprs = (mMatcher.group(1) ?: "").split(",")
+                val callPattern = Pattern.compile("""($helperNamesPattern)\((\d+)\)""")
                 for (expr in fragExprs) {
-                    val fnMatcher = Pattern.compile("""(At|lr)\((\d+)\)""").matcher(expr)
+                    val fnMatcher = callPattern.matcher(expr)
                     val sb = StringBuilder()
                     while (fnMatcher.find()) {
-                        val fn = fnMatcher.group(1)
+                        val fn = fnMatcher.group(1) ?: ""
                         val arg = (fnMatcher.group(2) ?: "0").toInt()
-                        sb.append(if (fn == "At") At(arg) else lr(arg))
+                        sb.append(resolveHelperCall(fn, arg))
                     }
                     val b64 = sb.toString()
                     val decoded = SafeBase64.decode(b64)
@@ -226,12 +323,13 @@ object MkissaBundleParser {
             var bootPrefix = "NmmeXF:"
             if (bpMatcher.find()) {
                 val expr = bpMatcher.group(1) ?: ""
-                val fnMatcher = Pattern.compile("""(At|lr)\((\d+)\)""").matcher(expr)
+                val callPattern = Pattern.compile("""($helperNamesPattern)\((\d+)\)""")
+                val fnMatcher = callPattern.matcher(expr)
                 val sb = StringBuilder()
                 while (fnMatcher.find()) {
-                    val fn = fnMatcher.group(1)
+                    val fn = fnMatcher.group(1) ?: ""
                     val arg = (fnMatcher.group(2) ?: "0").toInt()
-                    sb.append(if (fn == "At") At(arg) else lr(arg))
+                    sb.append(resolveHelperCall(fn, arg))
                 }
                 sb.append(":")
                 bootPrefix = sb.toString()
@@ -242,14 +340,15 @@ object MkissaBundleParser {
             val parts = mutableListOf<String>()
             if (partsMatcher.find()) {
                 val partsExprs = (partsMatcher.group(1) ?: "").split(",")
+                val partCallPattern = Pattern.compile("""(?:($helperNamesPattern)\((\d+)\)|"([^"]+)")""")
                 for (expr in partsExprs) {
-                    val fnMatcher = Pattern.compile("""(?:(At|lr)\((\d+)\)|"([^"]+)")""").matcher(expr)
+                    val fnMatcher = partCallPattern.matcher(expr)
                     val sb = StringBuilder()
                     while (fnMatcher.find()) {
                         val fn = fnMatcher.group(1)
                         if (fn != null) {
                             val arg = (fnMatcher.group(2) ?: "0").toInt()
-                            sb.append(if (fn == "At") At(arg) else lr(arg))
+                            sb.append(resolveHelperCall(fn, arg))
                         } else {
                             sb.append(fnMatcher.group(3) ?: "")
                         }

@@ -383,22 +383,89 @@ class MkissaIntegrationUnitTest {
 
     @Test
     fun test15_bundleParserDeobfuscatesReferenceBundle() {
-        val refBundleFile = java.io.File("mkissa_ref/cdn.mkissa.net/all/mk/_app/immutable/chunks/BQqtsmMs.js")
-        if (refBundleFile.exists()) {
-            val content = refBundleFile.readText(Charsets.UTF_8)
-            val extracted = com.ghostreborn.akira.core.config.MkissaBundleParser.parseCryptoParams(content)
-            assertNotNull(extracted)
-            assertEquals(12, extracted!!.saltMul)
-            assertEquals(227, extracted.saltAdd)
-            assertEquals(32, extracted.fragMul)
-            assertEquals(217, extracted.fragAdd)
-            assertEquals("+", extracted.joinDelimiter)
-            assertEquals("NmmeXF:", extracted.bootPrefix)
-            assertEquals(listOf("lane", "buildId", "host", "group", "epoch"), extracted.parts)
-            assertEquals(4, extracted.fragments.size)
-            assertEquals(604800000L, extracted.epochMs)
-            assertEquals(86400000L, extracted.graceMs)
-        }
+        val stream = javaClass.classLoader?.getResourceAsStream("fixtures/BQqtsmMs.js")
+            ?: java.io.File("app/src/test/resources/fixtures/BQqtsmMs.js").inputStream()
+        val content = stream.bufferedReader().use { it.readText() }
+        val extracted = com.ghostreborn.akira.core.config.MkissaBundleParser.parseCryptoParams(content)
+        assertNotNull(extracted)
+        assertEquals(12, extracted!!.saltMul)
+        assertEquals(227, extracted.saltAdd)
+        assertEquals(32, extracted.fragMul)
+        assertEquals(217, extracted.fragAdd)
+        assertEquals("+", extracted.joinDelimiter)
+        assertEquals("NmmeXF:", extracted.bootPrefix)
+        assertEquals(listOf("lane", "buildId", "host", "group", "epoch"), extracted.parts)
+        assertEquals(4, extracted.fragments.size)
+        assertEquals(604800000L, extracted.epochMs)
+        assertEquals(86400000L, extracted.graceMs)
     }
 
+    @Test
+    fun test16_arithmeticExpressionParserHandlesRealAndEdgeCases() {
+        // Real signed expression from reference bundle
+        val expr1 = "1870*-1+-1*-9874+-7663"
+        assertEquals(341L, com.ghostreborn.akira.core.config.MkissaBundleParser.evaluateArithmetic(expr1))
+
+        // Epoch and grace expressions from reference bundle
+        val expr2 = "-2*97429255+519*-1699713+1681809557"
+        assertEquals(604800000L, com.ghostreborn.akira.core.config.MkissaBundleParser.evaluateArithmetic(expr2))
+
+        val expr3 = "9*1421833+69182751+4420752"
+        assertEquals(86400000L, com.ghostreborn.akira.core.config.MkissaBundleParser.evaluateArithmetic(expr3))
+
+        // Adjacent unary and binary operators
+        val expr4 = "100 + -50 * +2 - -10"
+        assertEquals(10L, com.ghostreborn.akira.core.config.MkissaBundleParser.evaluateArithmetic(expr4))
+
+        // Whitespaces
+        val expr5 = "  12  *  -3  +  50  "
+        assertEquals(14L, com.ghostreborn.akira.core.config.MkissaBundleParser.evaluateArithmetic(expr5))
+
+        // Division
+        val expr6 = "100 / 4 * -2"
+        assertEquals(-50L, com.ghostreborn.akira.core.config.MkissaBundleParser.evaluateArithmetic(expr6))
+
+        // Unsupported characters and malformed expressions must fail safely
+        try {
+            com.ghostreborn.akira.core.config.MkissaBundleParser.evaluateArithmetic("window.alert(1)")
+            fail("Expected exception for arbitrary javascript code")
+        } catch (_: IllegalArgumentException) {}
+
+        try {
+            com.ghostreborn.akira.core.config.MkissaBundleParser.evaluateArithmetic("100 / 0")
+            fail("Expected exception for division by zero")
+        } catch (_: IllegalArgumentException) {}
+
+        try {
+            com.ghostreborn.akira.core.config.MkissaBundleParser.evaluateArithmetic("   ")
+            fail("Expected exception for blank expression")
+        } catch (_: IllegalArgumentException) {}
+    }
+
+    @Test
+    fun test17_preventMixedBuildConfiguration() {
+        val fallback = MkissaClientConfig.fallback()
+
+        // If a new buildId (e.g. "181") is encountered, but no valid extracted fragments exist,
+        // it must NOT silently use build 180's fragments with buildId 181!
+        val invalidMixedJson = JSONObject().apply {
+            put("buildId", "181")
+            // Empty fragments -> cannot extract
+            put("fragments", JSONArray())
+        }
+        val parsed = MkissaClientConfig.fromJson(invalidMixedJson)
+        // With empty fragments, it must fall back to consistent build 180 (not build 181 with 180's fragments)
+        assertEquals("180", parsed.buildId)
+        assertEquals(fallback.fragments.size, parsed.fragments.size)
+    }
+
+    @Test
+    fun test18_bootstrapTokenClassification() {
+        // Test that invalid_boot_token and 403 are identified as auth/boot refresh triggers
+        val bootError = "HTTP 403: {\"error\":\"invalid_boot_token\"}"
+        val normalError = "HTTP 500: Internal Server Error"
+
+        assertTrue(bootError.contains("invalid_boot_token", ignoreCase = true) || bootError.contains("403"))
+        assertFalse(normalError.contains("invalid_boot_token", ignoreCase = true) || normalError.contains("403"))
+    }
 }

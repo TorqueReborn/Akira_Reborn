@@ -225,8 +225,10 @@ object Decryptor {
             fetchBootstrapInternal(context, targetLane, targetBuildId, authToken, forceRefresh, initialConfig)
         } catch (e: Exception) {
             val msg = e.message ?: ""
-            if (msg.contains("invalid_boot_token") || msg.contains("403")) {
-                Log.w(TAG, "invalid_boot_token encountered. Invalidating config and retrying once...")
+            val isBootTokenError = msg.contains("invalid_boot_token", ignoreCase = true)
+            val isAuthOrForbidden = msg.contains("403") || msg.contains("401")
+            if (isBootTokenError || isAuthOrForbidden) {
+                Log.w(TAG, "Bootstrap failed ($msg). Invalidating configuration and retrying once with fresh snapshot...")
                 // Invalidate memory and persistent config and lane caches
                 MkissaConfigProvider.invalidate(context)
                 invalidateBootstrapCacheForLane(targetLane)
@@ -234,7 +236,8 @@ object Decryptor {
                 // Fetch fresh configuration directly from network
                 val refreshedConfig = MkissaConfigProvider.getConfig(context, forceRefresh = true)
                 val refreshedLane = lane ?: refreshedConfig.lane
-                val refreshedBuildId = buildId ?: refreshedConfig.buildId
+                // Crucial: Retry must use refreshedConfig.buildId to avoid mixing an old rejected buildId with a new config
+                val refreshedBuildId = refreshedConfig.buildId
                 fetchBootstrapInternal(context, refreshedLane, refreshedBuildId, authToken, forceRefresh = true, effectiveConfig = refreshedConfig)
             } else {
                 throw e
