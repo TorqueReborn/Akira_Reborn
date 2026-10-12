@@ -1,6 +1,7 @@
 package com.ghostreborn.akira
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -42,16 +43,10 @@ fun LoginScreen(
 
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
-    var emailTouched by rememberSaveable { mutableStateOf(false) }
-    var loginAttempted by rememberSaveable { mutableStateOf(false) }
 
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showCaptchaDialog by remember { mutableStateOf(false) }
-
-    val emailIsValid = email.contains("@") || email.trim().length >= 3
-
-    val showEmailError = (emailTouched || loginAttempted) && email.isNotBlank() && !emailIsValid
 
     fun performLogin(turnstileToken: String) {
         isLoading = true
@@ -83,7 +78,7 @@ fun LoginScreen(
             } catch (e: Exception) {
                 Log.e("LoginScreen", "Auth error: ${e.message}", e)
                 errorMessage = e.message ?: "Authentication failed"
-                android.widget.Toast.makeText(context, errorMessage, android.widget.Toast.LENGTH_LONG).show()
+                Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
             } finally {
                 isLoading = false
             }
@@ -118,26 +113,11 @@ fun LoginScreen(
 
             AkiraTextField(
                 value = email,
-                onValueChange = {
-                    email = it
-                    emailTouched = true
-                },
+                onValueChange = { email = it },
                 label = "Email or Username",
                 keyboardType = KeyboardType.Email,
-                isError = showEmailError,
                 enabled = !isLoading
             )
-
-            if (showEmailError) {
-                Text(
-                    text = "Enter a valid username or email address.",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 12.dp, top = 4.dp),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -166,13 +146,10 @@ fun LoginScreen(
             AkiraButton(
                 text = "Login",
                 onClick = {
-                    loginAttempted = true
-                    if (emailIsValid && password.isNotBlank()) {
-                        showCaptchaDialog = true
-                    }
+                    showCaptchaDialog = true
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = email.isNotBlank() && password.isNotBlank() && !isLoading,
+                enabled = !isLoading,
                 loading = isLoading
             )
         }

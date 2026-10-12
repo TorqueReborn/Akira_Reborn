@@ -153,8 +153,8 @@ fun CloudflareVerificationDialog(
                                         databaseEnabled = true
                                         javaScriptCanOpenWindowsAutomatically = true
                                         mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                                        useWideViewPort = true
-                                        loadWithOverviewMode = true
+                                        useWideViewPort = false
+                                        loadWithOverviewMode = false
                                         cacheMode = WebSettings.LOAD_DEFAULT
 
                                         userAgentString =
@@ -197,7 +197,24 @@ fun CloudflareVerificationDialog(
                                                 (function() {
                                                   try {
                                                     var style = document.createElement('style');
-                                                    style.innerHTML = 'body, html { background: transparent !important; display: flex !important; justify-content: center !important; align-items: center !important; min-height: 100vh !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100vw !important; height: 100vh !important; } .cf-turnstile { margin: auto !important; }';
+                                                    style.innerHTML = `
+                                                      body, html {
+                                                        background: transparent !important;
+                                                        margin: 0 !important;
+                                                        padding: 0 !important;
+                                                        display: flex !important;
+                                                        justify-content: center !important;
+                                                        align-items: center !important;
+                                                        height: 100% !important;
+                                                        width: 100% !important;
+                                                        overflow: hidden !important;
+                                                      }
+                                                      .cf-turnstile {
+                                                        transform: scale(1) !important;
+                                                        transform-origin: center center !important;
+                                                        margin: 0 auto !important;
+                                                      }
+                                                    `;
                                                     document.head.appendChild(style);
                                                   } catch (e) {}
 
