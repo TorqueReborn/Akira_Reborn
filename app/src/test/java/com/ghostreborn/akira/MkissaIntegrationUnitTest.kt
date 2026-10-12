@@ -61,18 +61,21 @@ class MkissaIntegrationUnitTest {
             put("fragments", JSONArray()) // empty fragments
         }
         val safeFallbackParsed = MkissaClientConfig.fromJson(malformedJson)
-        // Must fallback safely
-        assertEquals("179", safeFallbackParsed.buildId)
+        // Must fallback safely to consistent build defaults
+        assertEquals("180", safeFallbackParsed.buildId)
         assertEquals(4, safeFallbackParsed.fragments.size)
     }
 
     @Test
     fun test2_buildIdResolutionAndFallbackBehavior() {
         val fallback = MkissaClientConfig.fallback()
-        assertEquals("179", fallback.buildId)
+        assertEquals("180", fallback.buildId)
         assertEquals(OperationRegistry.LANE_EPISODE, fallback.lane)
         assertEquals(604800000L, fallback.epochMs)
         assertEquals(86400000L, fallback.graceMs)
+        assertEquals("NmmeXF:", fallback.bootPrefix)
+        assertEquals("+", fallback.joinDelimiter)
+        assertEquals(listOf("lane", "buildId", "host", "group", "epoch"), fallback.parts)
         assertEquals(4, fallback.fragments.size)
         fallback.fragments.forEach { assertEquals(8, it.size) }
     }
@@ -179,7 +182,7 @@ class MkissaIntegrationUnitTest {
     @Test
     fun test7_cryptoDerivationAndAaReqCompatibility() {
         val config = MkissaClientConfig.fallback()
-        val buildId = "179"
+        val buildId = "180"
 
         val seed = Decryptor.deriveSeed(buildId, config)
         assertEquals(32, seed.size)
@@ -357,6 +360,45 @@ class MkissaIntegrationUnitTest {
         assertTrue(StreamParser.knownIframeHosts.contains("filemoon"))
         assertTrue(StreamParser.knownIframeHosts.contains("mp4upload.com"))
         assertTrue(StreamParser.knownIframeHosts.contains("streamwish"))
+    }
+
+    @Test
+    fun test14_xAaBootDeterministicGenerationMatchesLiveVerification() {
+        val config = MkissaClientConfig.fallback()
+        val buildId = "180"
+        val lane = "k7"
+        val epoch = 2962L
+
+        val xAaBoot = Decryptor.generateXAaBoot(
+            buildId = buildId,
+            lane = lane,
+            epoch = epoch,
+            refererHost = "mkissa.to",
+            config = config
+        )
+
+        // Verified live response token for epoch 2962 on build 180
+        assertEquals("cc01127d294e41456f17056734acae28ac4d6018d9981a0c472adf8f1334a1ee", xAaBoot)
+    }
+
+    @Test
+    fun test15_bundleParserDeobfuscatesReferenceBundle() {
+        val refBundleFile = java.io.File("mkissa_ref/cdn.mkissa.net/all/mk/_app/immutable/chunks/BQqtsmMs.js")
+        if (refBundleFile.exists()) {
+            val content = refBundleFile.readText(Charsets.UTF_8)
+            val extracted = com.ghostreborn.akira.core.config.MkissaBundleParser.parseCryptoParams(content)
+            assertNotNull(extracted)
+            assertEquals(12, extracted!!.saltMul)
+            assertEquals(227, extracted.saltAdd)
+            assertEquals(32, extracted.fragMul)
+            assertEquals(217, extracted.fragAdd)
+            assertEquals("+", extracted.joinDelimiter)
+            assertEquals("NmmeXF:", extracted.bootPrefix)
+            assertEquals(listOf("lane", "buildId", "host", "group", "epoch"), extracted.parts)
+            assertEquals(4, extracted.fragments.size)
+            assertEquals(604800000L, extracted.epochMs)
+            assertEquals(86400000L, extracted.graceMs)
+        }
     }
 
 }

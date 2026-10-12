@@ -12,19 +12,20 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import java.util.regex.Pattern
 
 data class MkissaClientConfig(
     val buildId: String,
     val lane: String = OperationRegistry.LANE_EPISODE,
     val epochMs: Long = 604800000L,
     val graceMs: Long = 86400000L,
-    val saltMul: Int = 5,
-    val saltAdd: Int = 39,
-    val fragMul: Int = 251,
-    val fragAdd: Int = 21,
-    val bootPrefix: String = "KoCGqjW:",
-    val joinDelimiter: String = "|",
-    val parts: List<String> = listOf("buildId", "group", "lane", "epoch", "host"),
+    val saltMul: Int = 12,
+    val saltAdd: Int = 227,
+    val fragMul: Int = 32,
+    val fragAdd: Int = 217,
+    val bootPrefix: String = "NmmeXF:",
+    val joinDelimiter: String = "+",
+    val parts: List<String> = listOf("lane", "buildId", "host", "group", "epoch"),
     val fragments: List<ByteArray>,
     val operationHashes: Map<String, String> = mapOf(
         OperationRegistry.OP_BROWSE to OperationRegistry.DEFAULT_BROWSE_HASH,
@@ -50,26 +51,27 @@ data class MkissaClientConfig(
     }
 
     companion object {
+        // Fallback fragments validated against working reference build 180
         val DEFAULT_FRAGMENTS: List<ByteArray> = listOf(
-            SafeBase64.decode("o55/m8U/4FY="),
-            SafeBase64.decode("9lYtQjBCN5s="),
-            SafeBase64.decode("s3mBmnFuzkQ="),
-            SafeBase64.decode("H8tdZAar+nQ=")
+            SafeBase64.decode("AFEIqKvfcWk="),
+            SafeBase64.decode("SPqwGgteqB4="),
+            SafeBase64.decode("s/WpUzSxn8I="),
+            SafeBase64.decode("R7bCnc9cO5A=")
         )
 
         fun fallback(): MkissaClientConfig {
             return MkissaClientConfig(
-                buildId = "179",
+                buildId = "180",
                 lane = OperationRegistry.LANE_EPISODE,
                 epochMs = 604800000L,
                 graceMs = 86400000L,
-                saltMul = 5,
-                saltAdd = 39,
-                fragMul = 251,
-                fragAdd = 21,
-                bootPrefix = "KoCGqjW:",
-                joinDelimiter = "|",
-                parts = listOf("buildId", "group", "lane", "epoch", "host"),
+                saltMul = 12,
+                saltAdd = 227,
+                fragMul = 32,
+                fragAdd = 217,
+                bootPrefix = "NmmeXF:",
+                joinDelimiter = "+",
+                parts = listOf("lane", "buildId", "host", "group", "epoch"),
                 fragments = DEFAULT_FRAGMENTS,
                 operationHashes = mapOf(
                     OperationRegistry.OP_BROWSE to OperationRegistry.DEFAULT_BROWSE_HASH,
@@ -100,8 +102,6 @@ data class MkissaClientConfig(
                 for (i in 0 until partsArray.length()) {
                     partsList.add(partsArray.getString(i))
                 }
-            } else {
-                partsList.addAll(listOf("buildId", "group", "lane", "epoch", "host"))
             }
 
             val hashes = mutableMapOf<String, String>()
@@ -125,21 +125,29 @@ data class MkissaClientConfig(
             val endpoints = MkissaEndpoints.fromJson(endpointsObj)
 
             val rawBuildId = json.optString("buildId", "")
-            val validBuildId = if (rawBuildId.isNotBlank() && rawBuildId.matches(Regex("""^\d+$"""))) rawBuildId else "179"
+            val validBuildId = if (rawBuildId.isNotBlank() && rawBuildId.matches(Regex("""^\d+$"""))) rawBuildId else "180"
+
+            val fallbackCfg = fallback()
+
+            // Strict consistency check: If fragments or parts are missing or invalid, use consistent fallback defaults
+            val effectiveFragments = if (frags.size == 4) frags else fallbackCfg.fragments
+            val effectiveParts = if (partsList.isNotEmpty()) partsList else fallbackCfg.parts
+            val effectiveJoin = json.optString("joinDelimiter", fallbackCfg.joinDelimiter)
+            val effectiveBootPrefix = json.optString("bootPrefix", fallbackCfg.bootPrefix)
 
             return MkissaClientConfig(
                 buildId = validBuildId,
                 lane = json.optString("lane", OperationRegistry.LANE_EPISODE),
-                epochMs = json.optLong("epochMs", 604800000L),
-                graceMs = json.optLong("graceMs", 86400000L),
-                saltMul = json.optInt("saltMul", 5),
-                saltAdd = json.optInt("saltAdd", 39),
-                fragMul = json.optInt("fragMul", 251),
-                fragAdd = json.optInt("fragAdd", 21),
-                bootPrefix = json.optString("bootPrefix", "KoCGqjW:"),
-                joinDelimiter = json.optString("joinDelimiter", "|"),
-                parts = partsList,
-                fragments = if (frags.size == 4) frags else DEFAULT_FRAGMENTS,
+                epochMs = json.optLong("epochMs", fallbackCfg.epochMs),
+                graceMs = json.optLong("graceMs", fallbackCfg.graceMs),
+                saltMul = json.optInt("saltMul", fallbackCfg.saltMul),
+                saltAdd = json.optInt("saltAdd", fallbackCfg.saltAdd),
+                fragMul = json.optInt("fragMul", fallbackCfg.fragMul),
+                fragAdd = json.optInt("fragAdd", fallbackCfg.fragAdd),
+                bootPrefix = effectiveBootPrefix,
+                joinDelimiter = effectiveJoin,
+                parts = effectiveParts,
+                fragments = effectiveFragments,
                 operationHashes = hashes,
                 endpoints = endpoints,
                 fetchedAtMs = json.optLong("fetchedAt", 0L)
@@ -181,7 +189,7 @@ data class MkissaClientConfig(
 object MkissaConfigProvider {
     private const val TAG = "MkissaConfig"
     private const val PREF_NAME = "mkissa_config_pref"
-    private const val PREF_KEY = "mkissa_client_config_v3"
+    private const val PREF_KEY = "mkissa_client_config_v4"
     private const val CACHE_TTL_MS = 6 * 60 * 60 * 1000L // 6 hours
 
     const val PRIMARY_VERSION_URL = "https://mkissa.to/_app/version.json"
@@ -201,7 +209,7 @@ object MkissaConfigProvider {
     private val mutex = Mutex()
 
     val currentBuildId: String
-        get() = memoryConfig?.buildId ?: "179"
+        get() = memoryConfig?.buildId ?: "180"
 
     val currentConfig: MkissaClientConfig
         get() = memoryConfig ?: MkissaClientConfig.fallback()
@@ -290,7 +298,7 @@ object MkissaConfigProvider {
     }
 
     /**
-     * Executes authoritative dynamic discovery of build ID, bundle metadata, and operation hashes.
+     * Executes authoritative dynamic discovery of build ID, bundle metadata, and cryptographic parameters.
      */
     fun discoverFromNetwork(): MkissaClientConfig {
         var discoveredBuildId: String? = null
@@ -327,10 +335,11 @@ object MkissaConfigProvider {
             throw IllegalStateException("Unable to discover Mkissa build ID from version endpoints.")
         }
 
-        // Step 2: Attempt bundle metadata inspection if accessible
+        // Step 2: Attempt bundle metadata inspection from frontend HTML entry point
         val discoveredHashes = mutableMapOf<String, String>()
+        var extractedParams: ExtractedCryptoParams? = null
         try {
-            inspectFrontendBundle(discoveredHashes)
+            extractedParams = inspectFrontendBundle(discoveredHashes)
         } catch (e: Exception) {
             Log.d(TAG, "Frontend bundle inspection skipped: ${e.message}")
         }
@@ -345,30 +354,52 @@ object MkissaConfigProvider {
             }
         }
 
-        return MkissaClientConfig(
-            buildId = discoveredBuildId,
-            lane = fallback.lane,
-            epochMs = fallback.epochMs,
-            graceMs = fallback.graceMs,
-            saltMul = fallback.saltMul,
-            saltAdd = fallback.saltAdd,
-            fragMul = fallback.fragMul,
-            fragAdd = fallback.fragAdd,
-            bootPrefix = fallback.bootPrefix,
-            joinDelimiter = fallback.joinDelimiter,
-            parts = fallback.parts,
-            fragments = fallback.fragments,
-            operationHashes = finalHashes,
-            endpoints = fallback.endpoints,
-            fetchedAtMs = System.currentTimeMillis()
-        )
+        // Only adopt extracted params if complete and consistent (same deployment)
+        return if (extractedParams != null && extractedParams.fragments.size == 4) {
+            MkissaClientConfig(
+                buildId = discoveredBuildId,
+                lane = fallback.lane,
+                epochMs = extractedParams.epochMs,
+                graceMs = extractedParams.graceMs,
+                saltMul = extractedParams.saltMul,
+                saltAdd = extractedParams.saltAdd,
+                fragMul = extractedParams.fragMul,
+                fragAdd = extractedParams.fragAdd,
+                bootPrefix = extractedParams.bootPrefix,
+                joinDelimiter = extractedParams.joinDelimiter,
+                parts = extractedParams.parts,
+                fragments = extractedParams.fragments,
+                operationHashes = finalHashes,
+                endpoints = fallback.endpoints,
+                fetchedAtMs = System.currentTimeMillis()
+            )
+        } else {
+            // If bundle inspection was blocked or not recoverable, use consistent fallback parameters for the discovered build
+            MkissaClientConfig(
+                buildId = discoveredBuildId,
+                lane = fallback.lane,
+                epochMs = fallback.epochMs,
+                graceMs = fallback.graceMs,
+                saltMul = fallback.saltMul,
+                saltAdd = fallback.saltAdd,
+                fragMul = fallback.fragMul,
+                fragAdd = fallback.fragAdd,
+                bootPrefix = fallback.bootPrefix,
+                joinDelimiter = fallback.joinDelimiter,
+                parts = fallback.parts,
+                fragments = fallback.fragments,
+                operationHashes = finalHashes,
+                endpoints = fallback.endpoints,
+                fetchedAtMs = System.currentTimeMillis()
+            )
+        }
     }
 
     /**
      * Inspects the frontend index HTML to locate the core application script bundle and extract
-     * query hashes if the bundle format matches expectations.
+     * query hashes and cryptographic parameters.
      */
-    private fun inspectFrontendBundle(outHashes: MutableMap<String, String>) {
+    fun inspectFrontendBundle(outHashes: MutableMap<String, String>): ExtractedCryptoParams? {
         val req = Request.Builder()
             .url(FRONTEND_INDEX_URL)
             .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -377,12 +408,25 @@ object MkissaConfigProvider {
         val html = httpClient.newCall(req).execute().use { resp ->
             if (resp.isSuccessful) resp.body?.string() ?: "" else ""
         }
-        if (html.isBlank()) return
+        if (html.isBlank()) return null
 
-        // Look for app bundle script: e.g. /_app/immutable/entry/app.*.js or chunks
-        val scriptMatch = Regex("""src="([^"]*?/_app/immutable/[^"]*?\.js)"""").findAll(html)
-        for (m in scriptMatch) {
-            val scriptPath = m.groupValues[1]
+        val scriptsToInspect = mutableListOf<String>()
+
+        // 1. Script tags: src="..."
+        val scriptSrcMatches = Regex("""src="([^"]*?\.js)"""").findAll(html)
+        for (m in scriptSrcMatches) {
+            scriptsToInspect.add(m.groupValues[1])
+        }
+
+        // 2. Dynamic module imports in HTML: import("...")
+        val importMatches = Regex("""import\("([^"]*?\.js)"\)""").findAll(html)
+        for (m in importMatches) {
+            scriptsToInspect.add(m.groupValues[1])
+        }
+
+        var resultParams: ExtractedCryptoParams? = null
+
+        for (scriptPath in scriptsToInspect) {
             val fullScriptUrl = if (scriptPath.startsWith("http://") || scriptPath.startsWith("https://")) {
                 scriptPath
             } else if (scriptPath.startsWith("/")) {
@@ -401,25 +445,59 @@ object MkissaConfigProvider {
                     if (resp.isSuccessful) resp.body?.string() ?: "" else ""
                 }
 
+                if (jsContent.isBlank()) continue
+
+                // Check for crypto parameters
+                if (resultParams == null && jsContent.contains("saltMul:")) {
+                    resultParams = MkissaBundleParser.parseCryptoParams(jsContent)
+                }
+
+                // Check for GraphQL persisted query hashes
                 if (jsContent.contains("persistedQuery") || jsContent.contains("sha256Hash")) {
                     parseHashesFromBundle(jsContent, outHashes)
-                    if (outHashes.isNotEmpty()) break
                 }
+
+                // If app entry script, look for additional chunk dependencies: e.g. chunks/BQqtsmMs.js
+                if (fullScriptUrl.contains("app.") || fullScriptUrl.contains("entry/")) {
+                    val chunkMatches = Regex(""""([^"]*?chunks/[^"]*?\.js)"""").findAll(jsContent)
+                    for (cm in chunkMatches) {
+                        val relChunk = cm.groupValues[1].replace("../", "")
+                        val chunkUrl = "$CDN_BASE_URL/all/mk/_app/immutable/$relChunk"
+                        try {
+                            val cReq = Request.Builder()
+                                .url(chunkUrl)
+                                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                                .build()
+                            val chunkJs = httpClient.newCall(cReq).execute().use { r ->
+                                if (r.isSuccessful) r.body?.string() ?: "" else ""
+                            }
+                            if (resultParams == null && chunkJs.contains("saltMul:")) {
+                                resultParams = MkissaBundleParser.parseCryptoParams(chunkJs)
+                            }
+                            if (chunkJs.contains("persistedQuery") || chunkJs.contains("sha256Hash")) {
+                                parseHashesFromBundle(chunkJs, outHashes)
+                            }
+                            if (resultParams != null && outHashes.isNotEmpty()) break
+                        } catch (_: Exception) {}
+                    }
+                }
+
+                if (resultParams != null && outHashes.isNotEmpty()) break
             } catch (_: Exception) {}
         }
+
+        return resultParams
     }
 
     /**
      * Parses operation query hashes from JS bundle text without breaking on unknown tokens.
      */
     fun parseHashesFromBundle(jsContent: String, outHashes: MutableMap<String, String>) {
-        // Pattern: persistedQuery:{version:1,sha256Hash:"..."}
         val pqRegex = Regex("""persistedQuery\s*:\s*\{\s*version\s*:\s*1\s*,\s*sha256Hash\s*:\s*["']([a-f0-9]{64})["']""", RegexOption.IGNORE_CASE)
         val matches = pqRegex.findAll(jsContent)
         for (m in matches) {
             val hash = m.groupValues[1].lowercase()
             if (OperationRegistry.isValidSha256Hash(hash)) {
-                // Determine which operation matches by inspecting preceding context
                 val start = (m.range.first - 400).coerceAtLeast(0)
                 val snippet = jsContent.substring(start, m.range.first)
                 val lane = OperationRegistry.resolveLaneForQuery(snippet)

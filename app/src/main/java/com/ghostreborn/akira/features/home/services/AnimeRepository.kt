@@ -409,12 +409,13 @@ object AnimeRepository {
                     u.contains("AA_CRYPTO_MISSING") || u.contains("AA_CRYPTO_MISSING_BUILD") ||
                     u.contains("AA_CRYPTO_MISSING_LANE") || u.contains("AA_CRYPTO_LANE_MISMATCH") ||
                     u.contains("AA_CRYPTO_QUERY_MISMATCH") || u.contains("AA_CRYPTO_BUILD_MISMATCH") ||
-                    u.contains("AACRYPTO EXPIRED") || u.contains("AACRYPTO_EXPIRED")
+                    u.contains("AACRYPTO EXPIRED") || u.contains("AACRYPTO_EXPIRED") ||
+                    u.contains("INVALID_BOOT_TOKEN")
         }
 
-        // Recovery: Unknown build ID (max 1 retry)
-        if (checkBuildIdError(responseStr)) {
-            Log.d(TAG, "Unknown build id encountered. Invalidation retry...")
+        // Recovery: Unknown build ID or rejected boot token (max 1 retry)
+        if (checkBuildIdError(responseStr) || responseStr.contains("invalid_boot_token")) {
+            Log.d(TAG, "Unknown build id or invalid boot token encountered. Invalidation retry...")
             MkissaConfigProvider.invalidate(context)
             Decryptor.invalidateBootstrapCacheForLane(effectiveLane)
 
@@ -429,7 +430,7 @@ object AnimeRepository {
                 )
                 responseStr = executeEpisodeQuery(bootstrap, config, freshAaReq)
             } catch (e: Exception) {
-                Log.e(TAG, "Build ID recovery retry failed: $e")
+                Log.e(TAG, "Build ID / boot recovery retry failed: $e")
             }
 
             if (checkBuildIdError(responseStr)) {

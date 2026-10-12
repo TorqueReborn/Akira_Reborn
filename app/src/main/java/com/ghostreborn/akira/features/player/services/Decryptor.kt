@@ -217,15 +217,44 @@ object Decryptor {
         forceRefresh: Boolean = false,
         config: MkissaClientConfig? = null
     ): CryptoBootstrap = withContext(Dispatchers.IO) {
-        val effectiveConfig = config ?: MkissaConfigProvider.getConfig(context, forceRefresh = forceRefresh)
-        val effectiveLane = lane ?: effectiveConfig.lane
-        val effectiveBuildId = buildId ?: effectiveConfig.buildId
-        val cacheKey = "$effectiveBuildId:$effectiveLane"
+        val initialConfig = config ?: MkissaConfigProvider.getConfig(context, forceRefresh = forceRefresh)
+        val targetLane = lane ?: initialConfig.lane
+        val targetBuildId = buildId ?: initialConfig.buildId
 
+        try {
+            fetchBootstrapInternal(context, targetLane, targetBuildId, authToken, forceRefresh, initialConfig)
+        } catch (e: Exception) {
+            val msg = e.message ?: ""
+            if (msg.contains("invalid_boot_token") || msg.contains("403")) {
+                Log.w(TAG, "invalid_boot_token encountered. Invalidating config and retrying once...")
+                // Invalidate memory and persistent config and lane caches
+                MkissaConfigProvider.invalidate(context)
+                invalidateBootstrapCacheForLane(targetLane)
+
+                // Fetch fresh configuration directly from network
+                val refreshedConfig = MkissaConfigProvider.getConfig(context, forceRefresh = true)
+                val refreshedLane = lane ?: refreshedConfig.lane
+                val refreshedBuildId = buildId ?: refreshedConfig.buildId
+                fetchBootstrapInternal(context, refreshedLane, refreshedBuildId, authToken, forceRefresh = true, effectiveConfig = refreshedConfig)
+            } else {
+                throw e
+            }
+        }
+    }
+
+    private fun fetchBootstrapInternal(
+        context: Context,
+        effectiveLane: String,
+        effectiveBuildId: String,
+        authToken: String?,
+        forceRefresh: Boolean,
+        effectiveConfig: MkissaClientConfig
+    ): CryptoBootstrap {
+        val cacheKey = "$effectiveBuildId:$effectiveLane"
         val now = System.currentTimeMillis()
         val cached = bootstrapCache[cacheKey]
         if (!forceRefresh && cached != null && cached.k == effectiveLane && cached.buildId == effectiveBuildId && now < cached.switchAt) {
-            return@withContext cached
+            return cached
         }
 
         val epochCandidates = listOf(
@@ -248,6 +277,7 @@ object Decryptor {
 
                 val reqBuilder = Request.Builder()
                     .url(url)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                     .header("Origin", effectiveConfig.endpoints.appOrigin)
                     .header("Referer", effectiveConfig.endpoints.appReferer)
                     .header("x-build-id", effectiveBuildId)
@@ -280,7 +310,7 @@ object Decryptor {
 
                     bootstrapCache[cacheKey] = bootstrap
                     Log.d(TAG, "Bootstrap received: epoch=${bootstrap.epoch}, lane=${bootstrap.k}, switchAt=${bootstrap.switchAt}")
-                    return@withContext bootstrap
+                    return bootstrap
                 }
             } catch (e: Exception) {
                 lastError = e
