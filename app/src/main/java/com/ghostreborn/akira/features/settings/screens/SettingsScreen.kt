@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.FilterAlt
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,6 +35,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +57,8 @@ import com.ghostreborn.akira.features.auth.services.TokenManager
 import com.ghostreborn.akira.features.home.services.AnimeRepository
 import com.ghostreborn.akira.ui.theme.AkiraBackground
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
+import com.ghostreborn.akira.ui.theme.AkiraSurface
+import com.ghostreborn.akira.ui.theme.AkiraSurfaceBorder
 import com.ghostreborn.akira.ui.theme.AkiraTextPrimary
 import com.ghostreborn.akira.ui.theme.AkiraTextSecondary
 import kotlinx.coroutines.launch
@@ -246,6 +250,125 @@ fun SettingsScreen(
                             AnimeRepository.updateContentPreferences(context, newAllowUnknown = it)
                         }
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // App Updates & Version Section
+            Text(
+                text = "ABOUT & UPDATES",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = AkiraTextSecondary,
+                letterSpacing = 1.sp,
+                modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
+            )
+
+            val updateManager = remember { com.ghostreborn.akira.features.updater.services.UpdateManager.getInstance(context) }
+            val updateState by updateManager.uiState.collectAsState()
+            val installedVersionName = remember {
+                try {
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
+                } catch (_: Exception) {
+                    "1.0"
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(AkiraSurface)
+                    .border(1.dp, AkiraSurfaceBorder, RoundedCornerShape(20.dp))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFF3E8FF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.SystemUpdate,
+                                contentDescription = null,
+                                tint = AkiraPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Akira v$installedVersionName",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AkiraTextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = when (updateState) {
+                                    is com.ghostreborn.akira.features.updater.models.UpdateUiState.Checking -> "Checking GitHub for updates..."
+                                    is com.ghostreborn.akira.features.updater.models.UpdateUiState.UpToDate -> "You are on the latest version"
+                                    is com.ghostreborn.akira.features.updater.models.UpdateUiState.Available -> "New version available: ${(updateState as com.ghostreborn.akira.features.updater.models.UpdateUiState.Available).targetVersionName}"
+                                    else -> "Check for the latest GitHub release"
+                                },
+                                fontSize = 12.sp,
+                                color = AkiraTextSecondary
+                            )
+                        }
+
+                        if (updateState is com.ghostreborn.akira.features.updater.models.UpdateUiState.Checking) {
+                            CircularProgressIndicator(
+                                strokeWidth = 2.dp,
+                                color = AkiraPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            androidx.compose.material3.TextButton(
+                                onClick = { updateManager.checkForUpdates(isManual = true) }
+                            ) {
+                                Text(
+                                    text = "Check",
+                                    fontWeight = FontWeight.Bold,
+                                    color = AkiraPrimary,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+
+                    if (updateState is com.ghostreborn.akira.features.updater.models.UpdateUiState.UpToDate) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF0FDF4))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF16A34A),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Akira is up to date",
+                                fontSize = 12.sp,
+                                color = Color(0xFF16A34A),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
             }
 

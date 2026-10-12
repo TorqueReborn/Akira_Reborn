@@ -1,7 +1,6 @@
 package com.ghostreborn.akira
 
 import android.util.Log
-import android.util.Patterns
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.ghostreborn.akira.features.auth.services.AuthRepository
@@ -116,25 +114,7 @@ fun LoginScreen(
         ) {
             AkiraBranding()
 
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Text(
-                text = "Welcome back",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Log in to continue watching your favorites.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             AkiraTextField(
                 value = email,

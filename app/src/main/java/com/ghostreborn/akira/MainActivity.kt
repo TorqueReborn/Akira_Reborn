@@ -26,6 +26,10 @@ import com.ghostreborn.akira.features.settings.screens.SettingsScreen
 import com.ghostreborn.akira.ui.theme.AkiraBackground
 import com.ghostreborn.akira.ui.theme.AkiraTheme
 
+import androidx.compose.runtime.collectAsState
+import com.ghostreborn.akira.features.updater.services.UpdateManager
+import com.ghostreborn.akira.features.updater.ui.UpdateDialog
+
 // Shared holder for transient navigation arguments like stream sources list
 object NavHolder {
     var pendingSources: List<StreamSource> = emptyList()
@@ -43,13 +47,28 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
 
+        val updateManager = UpdateManager.getInstance(this)
+        // Check for updates automatically subject to 24-hr freshness interval
+        updateManager.checkForUpdates(isManual = false)
+
         setContent {
             AkiraTheme {
+                val updateState = updateManager.uiState.collectAsState().value
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = AkiraBackground
                 ) {
                     AkiraAppNavigation()
+
+                    UpdateDialog(
+                        state = updateState,
+                        onStartDownload = { release -> updateManager.startDownload(release) },
+                        onCancelDownload = { updateManager.cancelDownload() },
+                        onInstall = { apkFile -> updateManager.installApk(apkFile) },
+                        onDismiss = { updateManager.clearState() },
+                        onDismissUpdateVersion = { release -> updateManager.dismissUpdate(release) }
+                    )
                 }
             }
         }

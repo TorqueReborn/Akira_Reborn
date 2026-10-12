@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Grants access to APK files stored in app's cache directory under /updates -->
+    <cache-path name="cached_updates" path="updates/" />
+    <!-- Also allow app internal files directory under /updates if configured -->
+    <files-path name="internal_updates" path="updates/" />
+</paths>
