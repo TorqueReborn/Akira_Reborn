@@ -91,11 +91,14 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.ghostreborn.akira.core.config.MkissaConfigProvider
 import com.ghostreborn.akira.features.player.models.StreamSource
+import com.ghostreborn.akira.features.player.services.VideoCacheManager
 import com.ghostreborn.akira.features.player.viewmodels.PlayerViewModel
 import com.ghostreborn.akira.features.player.widgets.EpisodeDrawer
 import com.ghostreborn.akira.features.player.widgets.SourceQualityPicker
@@ -127,6 +130,7 @@ fun PlayerScreen(
 
     var isLocked by remember { mutableStateOf(false) }
     var currentPositionMs by remember { mutableLongStateOf(initialPositionMs) }
+    var bufferedPositionMs by remember { mutableLongStateOf(0L) }
     var totalDurationMs by remember { mutableLongStateOf(0L) }
     var isSeeking by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(true) }
@@ -218,7 +222,7 @@ fun PlayerScreen(
         onDispose { }
     }
 
-    // Initialize ExoPlayer
+    // Initialize ExoPlayer with aggressive whole-video background buffering and disk cache
     val exoPlayer = remember {
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:155.0) Gecko/20100101 Firefox/155.0")
@@ -229,11 +233,34 @@ fun PlayerScreen(
                 )
             )
 
+        // Cache chunks to disk (prevents RAM OOM and enables instant seek back)
+        val cache = VideoCacheManager.getInstance(context)
+        val cacheDataSourceFactory = CacheDataSource.Factory()
+            .setCache(cache)
+            .setUpstreamDataSourceFactory(httpDataSourceFactory)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+
         val mediaSourceFactory = DefaultMediaSourceFactory(context)
-            .setDataSourceFactory(httpDataSourceFactory)
+            .setDataSourceFactory(cacheDataSourceFactory)
+
+        // Allow buffering up to 30 minutes (entire episode) continuously in the background
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                /* minBufferMs = */ 30_000,
+                /* maxBufferMs = */ 30 * 60 * 1000,
+                /* bufferForPlaybackMs = */ 1_000,
+                /* bufferForPlaybackAfterRebufferMs = */ 2_500
+            )
+            .setBackBuffer(
+                /* backBufferDurationMs = */ 30 * 60 * 1000,
+                /* retainBackBufferFromKeyframe = */ true
+            )
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .build()
 
         ExoPlayer.Builder(context)
             .setMediaSourceFactory(mediaSourceFactory)
+            .setLoadControl(loadControl)
             .build()
     }
 
@@ -298,10 +325,11 @@ fun PlayerScreen(
         })
     }
 
-    // Auto-save watch progress
+    // Auto-save watch progress & update playback/buffered positions
     LaunchedEffect(exoPlayer) {
         while (true) {
-            delay(1000L)
+            delay(500L)
+            bufferedPositionMs = exoPlayer.bufferedPosition.coerceAtLeast(0L)
             if (exoPlayer.isPlaying && !isSeeking) {
                 currentPositionMs = exoPlayer.currentPosition
                 totalDurationMs = exoPlayer.duration.coerceAtLeast(0L)
@@ -883,6 +911,10 @@ fun PlayerScreen(
                             if (totalDurationMs > 0) (currentPositionMs.toFloat() / totalDurationMs).coerceIn(0f, 1f) else 0f
                         }
 
+                        val bufferedFraction = remember(bufferedPositionMs, totalDurationMs) {
+                            if (totalDurationMs > 0) (bufferedPositionMs.toFloat() / totalDurationMs).coerceIn(0f, 1f) else 0f
+                        }
+
                         BoxWithConstraints(
                             modifier = Modifier
                                 .weight(1f)
@@ -918,15 +950,27 @@ fun PlayerScreen(
                         ) {
                             val trackWidth = maxWidth
                             val activeWidth = trackWidth * progressFraction
+                            val bufferedWidth = trackWidth * bufferedFraction
 
+                            // 1. Background full track
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(5.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0x40FFFFFF))
+                                    .background(Color(0x35FFFFFF))
                             )
 
+                            // 2. Buffered progress track
+                            Box(
+                                modifier = Modifier
+                                    .width(bufferedWidth)
+                                    .height(5.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x80FFFFFF))
+                            )
+
+                            // 3. Played active progress track
                             Box(
                                 modifier = Modifier
                                     .width(activeWidth)
