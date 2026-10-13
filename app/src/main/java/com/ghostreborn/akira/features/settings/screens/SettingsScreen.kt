@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -55,9 +57,7 @@ import coil.compose.AsyncImage
 import com.ghostreborn.akira.features.auth.services.AuthRepository
 import com.ghostreborn.akira.features.auth.services.TokenManager
 import com.ghostreborn.akira.features.home.services.AnimeRepository
-import com.ghostreborn.akira.ui.theme.AkiraBackground
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
-import com.ghostreborn.akira.ui.theme.AkiraSurface
 import com.ghostreborn.akira.ui.theme.AkiraSurfaceBorder
 import com.ghostreborn.akira.ui.theme.AkiraTextPrimary
 import com.ghostreborn.akira.ui.theme.AkiraTextSecondary
@@ -84,7 +84,9 @@ fun SettingsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(AkiraBackground)
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
@@ -102,13 +104,13 @@ fun SettingsScreen(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color.White)
-                        .border(1.dp, Color(0xFFE2E8F0), CircleShape)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.ArrowBack,
                         contentDescription = "Back",
-                        tint = AkiraTextPrimary
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -118,7 +120,7 @@ fun SettingsScreen(
                     text = "Settings",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
-                        color = AkiraTextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 )
             }
@@ -129,8 +131,8 @@ fun SettingsScreen(
                     .fillMaxWidth()
                     .shadow(elevation = 6.dp, shape = RoundedCornerShape(22.dp))
                     .clip(RoundedCornerShape(22.dp))
-                    .background(Color.White)
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(22.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(22.dp))
                     .padding(18.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -148,13 +150,13 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .size(56.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFF3E8FF)),
+                                .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Person,
                                 contentDescription = null,
-                                tint = AkiraPrimary,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(32.dp)
                             )
                         }
@@ -167,7 +169,7 @@ fun SettingsScreen(
                             text = username,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = AkiraTextPrimary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         if (!email.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(2.dp))
@@ -175,7 +177,7 @@ fun SettingsScreen(
                                 Text(
                                     text = email,
                                     fontSize = 13.sp,
-                                    color = AkiraTextSecondary
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 if (isVerified) {
                                     Spacer(modifier = Modifier.width(4.dp))
@@ -200,7 +202,7 @@ fun SettingsScreen(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.sp,
-                color = AkiraTextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
             )
 
@@ -210,8 +212,8 @@ fun SettingsScreen(
                     .fillMaxWidth()
                     .shadow(elevation = 6.dp, shape = RoundedCornerShape(20.dp))
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White)
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
             ) {
                 Column {
                     FilterSwitchTile(
@@ -225,7 +227,7 @@ fun SettingsScreen(
                         }
                     )
 
-                    HorizontalDivider(color = Color(0xFFF1EEF8), thickness = 1.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), thickness = 1.dp)
 
                     FilterSwitchTile(
                         icon = Icons.Rounded.FilterAlt,
@@ -238,7 +240,7 @@ fun SettingsScreen(
                         }
                     )
 
-                    HorizontalDivider(color = Color(0xFFF1EEF8), thickness = 1.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), thickness = 1.dp)
 
                     FilterSwitchTile(
                         icon = Icons.Rounded.HelpOutline,
@@ -260,7 +262,7 @@ fun SettingsScreen(
                 text = "ABOUT & UPDATES",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = AkiraTextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 letterSpacing = 1.sp,
                 modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
             )
@@ -279,8 +281,8 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(AkiraSurface)
-                    .border(1.dp, AkiraSurfaceBorder, RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -291,13 +293,13 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF3E8FF)),
+                                .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.SystemUpdate,
                                 contentDescription = null,
-                                tint = AkiraPrimary,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -309,7 +311,7 @@ fun SettingsScreen(
                                 text = "Akira v$installedVersionName",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = AkiraTextPrimary
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
@@ -320,7 +322,7 @@ fun SettingsScreen(
                                     else -> "Check for the latest GitHub release"
                                 },
                                 fontSize = 12.sp,
-                                color = AkiraTextSecondary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
@@ -351,7 +353,7 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFF0FDF4))
+                                .background(Color(0xFF143821))
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Icon(
@@ -364,7 +366,7 @@ fun SettingsScreen(
                             Text(
                                 text = "Akira is up to date",
                                 fontSize = 12.sp,
-                                color = Color(0xFF16A34A),
+                                color = Color(0xFF4ADE80),
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -379,8 +381,8 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFFEE2E2))
-                    .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(16.dp))
+                    .background(Color(0xFF3F1D1D))
+                    .border(1.dp, Color(0xFF7F1D1D), RoundedCornerShape(16.dp))
                     .clickable(enabled = !isLoggingOut) {
                         isLoggingOut = true
                         scope.launch {
@@ -439,13 +441,13 @@ fun FilterSwitchTile(
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFFF3E8FF)),
+                .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = AkiraPrimary,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -457,13 +459,13 @@ fun FilterSwitchTile(
                 text = title,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = AkiraTextPrimary
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 fontSize = 12.sp,
-                color = AkiraTextSecondary
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 

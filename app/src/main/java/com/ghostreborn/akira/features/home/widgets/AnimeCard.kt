@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.MovieCreation
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -31,7 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.SubcomposeAsyncImage
+import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ghostreborn.akira.features.home.models.AnimeShow
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
@@ -45,12 +46,13 @@ fun AnimeCard(
     onTap: () -> Unit
 ) {
     val context = LocalContext.current
+    val cardShape = RoundedCornerShape(14.dp)
 
     Box(
         modifier = modifier
-            .shadow(elevation = 10.dp, shape = RoundedCornerShape(18.dp), ambientColor = AkiraShadowColor, spotColor = AkiraShadowColor)
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color(0xFFEDE8F5))
+            .shadow(elevation = 3.dp, shape = cardShape, ambientColor = AkiraShadowColor, spotColor = AkiraShadowColor)
+            .clip(cardShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onTap() }
     ) {
         val request = remember(anime.thumbnail) {
@@ -65,40 +67,11 @@ fun AnimeCard(
                 .build()
         }
 
-        SubcomposeAsyncImage(
+        AsyncImage(
             model = request,
             contentDescription = anime.englishName ?: anime.name,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-            loading = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFFEDE8F5)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        strokeWidth = 2.dp,
-                        color = AkiraPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            },
-            error = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFFF1EDF8)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.MovieCreation,
-                        contentDescription = null,
-                        tint = Color(0xFF9D97AD),
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-            }
+            modifier = Modifier.fillMaxSize()
         )
 
         // Bottom dark gradient overlay for text readability
@@ -109,10 +82,10 @@ fun AnimeCard(
                     Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color(0x990F0C1B),
-                            Color(0xF00F0C1B)
-                        ),
-                        startY = 300f
+                            Color(0x33000000),
+                            Color(0xB3000000),
+                            Color(0xF2000000)
+                        )
                     )
                 )
         )
@@ -128,13 +101,13 @@ fun AnimeCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xCC0F0C1B))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .background(Color(0xE60F0D15))
+                        .padding(horizontal = 7.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = if (anime.availableEpisodesSub > 0) "EP ${anime.availableEpisodesSub}" else "DUB ${anime.availableEpisodesDub}",
                         color = Color.White,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -146,22 +119,22 @@ fun AnimeCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xCC0F0C1B))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .background(Color(0xE60F0D15))
+                        .padding(horizontal = 7.dp, vertical = 3.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Rounded.Star,
                             contentDescription = null,
                             tint = Color(0xFFFBBF24),
-                            modifier = Modifier.size(11.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                         Text(
                             text = String.format("%.1f", anime.score),
                             color = Color.White,
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(start = 2.dp)
+                            modifier = Modifier.padding(start = 3.dp)
                         )
                     }
                 }
@@ -173,7 +146,7 @@ fun AnimeCard(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(10.dp)
+                .padding(horizontal = 10.dp, vertical = 10.dp)
         ) {
             Text(
                 text = anime.englishName ?: anime.name,
@@ -182,7 +155,7 @@ fun AnimeCard(
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                lineHeight = 16.sp
+                lineHeight = 17.sp
             )
         }
     }

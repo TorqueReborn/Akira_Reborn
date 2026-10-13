@@ -3,6 +3,7 @@ package com.ghostreborn.akira.ui.components
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,7 +17,6 @@ import androidx.compose.ui.unit.sp
 import com.ghostreborn.akira.ui.theme.AkiraLogoBlue
 import com.ghostreborn.akira.ui.theme.AkiraLogoPink
 import com.ghostreborn.akira.ui.theme.AkiraLogoPurple
-import com.ghostreborn.akira.ui.theme.AkiraTextSecondary
 
 val AkiraLogoGradientBrush = Brush.linearGradient(
     listOf(AkiraLogoBlue, AkiraLogoPurple, AkiraLogoPink)
@@ -42,7 +42,7 @@ fun AkiraBranding(
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = "Your gateway to the anime world.",
-            color = AkiraTextSecondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.2.sp,

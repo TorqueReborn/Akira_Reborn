@@ -30,6 +30,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -46,7 +47,6 @@ import androidx.compose.ui.window.DialogProperties
 import com.ghostreborn.akira.features.updater.models.AppRelease
 import com.ghostreborn.akira.features.updater.models.UpdateUiState
 import com.ghostreborn.akira.ui.theme.AkiraAccentBackground
-import com.ghostreborn.akira.ui.theme.AkiraBackground
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
 import com.ghostreborn.akira.ui.theme.AkiraSurface
 import com.ghostreborn.akira.ui.theme.AkiraSurfaceBorder
@@ -118,11 +118,11 @@ private fun AvailableUpdateDialog(
     ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
-            color = AkiraSurface,
+            color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, AkiraSurfaceBorder, RoundedCornerShape(24.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(24.dp))
         ) {
             Column(
                 modifier = Modifier
@@ -138,13 +138,13 @@ private fun AvailableUpdateDialog(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(AkiraAccentBackground),
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.NewReleases,
                             contentDescription = null,
-                            tint = AkiraPrimary,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -156,12 +156,12 @@ private fun AvailableUpdateDialog(
                             text = if (state.isMandatory) "Critical Update Required" else "Update Available",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = AkiraTextPrimary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Akira ${state.targetVersionName}",
                             fontSize = 13.sp,
-                            color = AkiraPrimary,
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -174,7 +174,7 @@ private fun AvailableUpdateDialog(
                             Icon(
                                 imageVector = Icons.Rounded.Close,
                                 contentDescription = "Close",
-                                tint = AkiraTextSecondary,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -188,19 +188,19 @@ private fun AvailableUpdateDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(AkiraBackground)
+                        .background(MaterialTheme.colorScheme.background)
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("Current Version", fontSize = 11.sp, color = AkiraTextHint)
-                        Text(state.currentVersionName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AkiraTextSecondary)
+                        Text("Current Version", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                        Text(state.currentVersionName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("→", fontSize = 16.sp, color = AkiraPrimary)
+                    Text("→", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("New Version", fontSize = 11.sp, color = AkiraTextHint)
-                        Text(state.targetVersionName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AkiraPrimary)
+                        Text("New Version", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                        Text(state.targetVersionName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
 
@@ -214,7 +214,7 @@ private fun AvailableUpdateDialog(
                     Text(
                         text = "Download size: $apkSizeMb",
                         fontSize = 12.sp,
-                        color = AkiraTextSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 4.dp)
                     )
                 }
@@ -227,7 +227,7 @@ private fun AvailableUpdateDialog(
                         text = "What's New:",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AkiraTextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Box(
@@ -235,7 +235,7 @@ private fun AvailableUpdateDialog(
                             .fillMaxWidth()
                             .heightIn(max = 160.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(AkiraBackground)
+                            .background(MaterialTheme.colorScheme.background)
                             .verticalScroll(rememberScrollState())
                             .padding(12.dp)
                     ) {
@@ -243,7 +243,7 @@ private fun AvailableUpdateDialog(
                             text = state.release.body,
                             fontSize = 12.sp,
                             lineHeight = 18.sp,
-                            color = AkiraTextSecondary
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -261,7 +261,7 @@ private fun AvailableUpdateDialog(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Later", color = AkiraTextSecondary)
+                            Text("Later", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                     }

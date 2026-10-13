@@ -15,16 +15,26 @@ val AkiraPrimary = Color(0xFF7C3AED)
 val AkiraPrimaryLight = Color(0xFF8B5CF6)
 val AkiraPrimaryDark = Color(0xFF6D28D9)
 
-// Backgrounds
+// Light Theme Colors
 val AkiraBackground = Color(0xFFFAF9FE)
 val AkiraSurface = Color(0xFFFFFFFF)
 val AkiraAccentBackground = Color(0xFFF3E8FF)
 val AkiraSurfaceBorder = Color(0xFFEDE8F5)
 
-// Text colors
 val AkiraTextPrimary = Color(0xFF1E1B2E)
 val AkiraTextSecondary = Color(0xFF6E6B7B)
 val AkiraTextHint = Color(0xFFA39EB0)
+
+// Dark Theme Colors
+val AkiraDarkBackground = Color(0xFF0F0D15)
+val AkiraDarkSurface = Color(0xFF171422)
+val AkiraDarkSurfaceVariant = Color(0xFF221E32)
+val AkiraDarkAccentBackground = Color(0xFF2B1F47)
+val AkiraDarkSurfaceBorder = Color(0xFF2E2744)
+
+val AkiraDarkTextPrimary = Color(0xFFF4F0FF)
+val AkiraDarkTextSecondary = Color(0xFFA59EBA)
+val AkiraDarkTextHint = Color(0xFF6E6785)
 
 // Logo Gradient Colors
 val AkiraLogoBlue = Color(0xFF3B82F6)

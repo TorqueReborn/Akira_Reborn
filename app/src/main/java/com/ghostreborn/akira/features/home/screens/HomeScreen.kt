@@ -1,25 +1,36 @@
 package com.ghostreborn.akira.features.home.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -29,10 +40,9 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,10 +69,7 @@ import com.ghostreborn.akira.features.home.services.AnimeRepository
 import com.ghostreborn.akira.features.home.widgets.AnimeCard
 import com.ghostreborn.akira.features.home.widgets.FeaturedAnimeBanner
 import com.ghostreborn.akira.ui.components.AkiraLogoGradientBrush
-import com.ghostreborn.akira.ui.theme.AkiraBackground
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
-import com.ghostreborn.akira.ui.theme.AkiraTextPrimary
-import com.ghostreborn.akira.ui.theme.AkiraTextSecondary
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -99,6 +106,16 @@ fun HomeScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     var searchJob by remember { mutableStateOf<Job?>(null) }
+
+    val targetBias = if (translationType == "sub") -1f else 1f
+    val animatedBias by animateFloatAsState(
+        targetValue = targetBias,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "pill_translation_bias"
+    )
 
     fun fetchShows(page: Int, reset: Boolean = false) {
         if (page == 1) {
@@ -173,245 +190,312 @@ fun HomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(AkiraBackground)
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Header Bar
-            if (isSearchActive) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = {
-                            searchQuery = it
-                            searchJob?.cancel()
-                            searchJob = scope.launch {
-                                delay(400L)
-                                fetchShows(1, reset = true)
-                            }
-                        },
-                        placeholder = { Text("Search anime, characters, studios...") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AkiraPrimary,
-                            unfocusedBorderColor = Color(0xFFE2E8F0)
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    IconButton(
-                        onClick = {
-                            isSearchActive = false
-                            searchQuery = ""
-                            fetchShows(1, reset = true)
-                        }
-                    ) {
-                        Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close Search")
-                    }
-                }
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "AKIRA",
-                        style = TextStyle(
-                            brush = AkiraLogoGradientBrush,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 4.sp
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    // Sub / Dub Pill Switcher
+        // Main Anime Grid including Header and Categories as scrollable items
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            state = gridState,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Header Bar Item
+            item(
+                key = "header_bar",
+                contentType = "header",
+                span = { GridItemSpan(2) }
+            ) {
+                if (isSearchActive) {
                     Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Color(0xFFF1EEF8))
-                            .padding(3.dp)
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf("sub" to "SUB", "dub" to "DUB").forEach { (type, label) ->
-                            val isSelected = translationType == type
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(if (isSelected) AkiraPrimary else Color.Transparent)
-                                    .clickable {
-                                        if (translationType != type) {
-                                            translationType = type
-                                            fetchShows(1, reset = true)
-                                        }
-                                    }
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) Color.White else AkiraTextSecondary
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    IconButton(
-                        onClick = { isSearchActive = true },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .shadow(2.dp, CircleShape)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = "Search",
-                            tint = AkiraTextPrimary,
-                            modifier = Modifier.size(20.dp)
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = {
+                                searchQuery = it
+                                searchJob?.cancel()
+                                searchJob = scope.launch {
+                                    delay(400L)
+                                    fetchShows(1, reset = true)
+                                }
+                            },
+                            placeholder = { Text("Search anime, characters, studios...") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AkiraPrimary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                            )
                         )
-                    }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
 
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .shadow(2.dp, CircleShape)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Settings,
-                            contentDescription = "Settings",
-                            tint = AkiraTextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-
-            // Categories horizontal tab row
-            ScrollableTabRow(
-                selectedTabIndex = selectedCategoryIndex,
-                edgePadding = 20.dp,
-                containerColor = Color.Transparent,
-                divider = {},
-                indicator = {}
-            ) {
-                categories.forEachIndexed { index, (label, _) ->
-                    val isSelected = selectedCategoryIndex == index
-                    Tab(
-                        selected = isSelected,
-                        onClick = {
-                            if (selectedCategoryIndex != index) {
-                                selectedCategoryIndex = index
+                        IconButton(
+                            onClick = {
+                                isSearchActive = false
+                                searchQuery = ""
                                 fetchShows(1, reset = true)
                             }
-                        },
-                        text = {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) AkiraPrimary else Color(0xFFEDE8F5))
-                                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color.White else AkiraTextSecondary,
-                                    fontSize = 13.sp
-                                )
+                        ) {
+                            Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close Search")
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "AKIRA",
+                            style = TextStyle(
+                                brush = AkiraLogoGradientBrush,
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 4.sp
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        // Sub / Dub Pill Switcher
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // Sliding Gradient Background Indicator
+                            Row(modifier = Modifier.matchParentSize()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .weight(1f)
+                                        .align(Alignment.CenterVertically),
+                                    contentAlignment = androidx.compose.ui.BiasAlignment(animatedBias, 0f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .fillMaxWidth(0.5f)
+                                            .clip(CircleShape)
+                                            .background(AkiraLogoGradientBrush)
+                                    )
+                                }
+                            }
+
+                            // Labels Row
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                listOf("sub" to "SUB", "dub" to "DUB").forEach { (type, label) ->
+                                    val isSelected = translationType == type
+                                    val textColor by animateColorAsState(
+                                        targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        label = "pill_text_color"
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                if (translationType != type) {
+                                                    translationType = type
+                                                    fetchShows(1, reset = true)
+                                                }
+                                            }
+                                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = textColor
+                                        )
+                                    }
+                                }
                             }
                         }
-                    )
-                }
-            }
 
-            Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
 
-            // Main Anime Grid
-            if (isLoading && shows.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = AkiraPrimary)
-                }
-            } else if (!errorMessage.isNullOrBlank() && shows.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = errorMessage ?: "Error", color = Color.Red)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Tap to Retry",
-                            color = AkiraPrimary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickable { fetchShows(1, reset = true) }
-                        )
-                    }
-                }
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    state = gridState,
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    // Featured Banner header item
-                    if (featuredShows.isNotEmpty() && !isSearchActive) {
-                        item(span = { GridItemSpan(2) }) {
-                            FeaturedAnimeBanner(
-                                featuredShows = featuredShows,
-                                onTap = onNavigateToDetail,
-                                modifier = Modifier.padding(bottom = 12.dp)
+                        IconButton(
+                            onClick = { isSearchActive = true },
+                            modifier = Modifier
+                                .size(38.dp)
+                                .shadow(2.dp, CircleShape)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = "Search",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        IconButton(
+                            onClick = onNavigateToSettings,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .shadow(2.dp, CircleShape)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Settings,
+                                contentDescription = "Settings",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
+                }
+            }
 
-                    items(shows, key = { it.id }) { show ->
-                        AnimeCard(
-                            anime = show,
-                            onTap = { onNavigateToDetail(show) },
+            // Category Chips Row Item
+            item(
+                key = "category_chips",
+                contentType = "categories",
+                span = { GridItemSpan(2) }
+            ) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    itemsIndexed(categories) { index, (label, _) ->
+                        val isSelected = selectedCategoryIndex == index
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(0.72f)
-                        )
-                    }
-
-                    if (isLoadingMore) {
-                        item(span = { GridItemSpan(2) }) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    color = AkiraPrimary,
-                                    strokeWidth = 2.dp,
-                                    modifier = Modifier.size(24.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .then(
+                                    if (isSelected) {
+                                        Modifier.background(AkiraLogoGradientBrush)
+                                    } else {
+                                        Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
+                                    }
                                 )
-                            }
+                                .clickable {
+                                    if (selectedCategoryIndex != index) {
+                                        selectedCategoryIndex = index
+                                        fetchShows(1, reset = true)
+                                    }
+                                }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 13.sp
+                            )
                         }
+                    }
+                }
+            }
+
+            // Featured Banner header item
+            if (featuredShows.isNotEmpty() && !isSearchActive) {
+                item(
+                    key = "featured_banner",
+                    contentType = "banner",
+                    span = { GridItemSpan(2) }
+                ) {
+                    FeaturedAnimeBanner(
+                        featuredShows = featuredShows,
+                        onTap = onNavigateToDetail,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+            }
+
+            // Loading state when initial fetch
+            if (isLoading && shows.isEmpty()) {
+                item(
+                    key = "initial_loading",
+                    contentType = "loading",
+                    span = { GridItemSpan(2) }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = AkiraPrimary)
+                    }
+                }
+            } else if (!errorMessage.isNullOrBlank() && shows.isEmpty()) {
+                item(
+                    key = "error_retry",
+                    contentType = "error",
+                    span = { GridItemSpan(2) }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = errorMessage ?: "Error", color = Color.Red)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Tap to Retry",
+                                color = AkiraPrimary,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable { fetchShows(1, reset = true) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            items(
+                items = shows,
+                key = { it.id },
+                contentType = { "anime_card" }
+            ) { show ->
+                AnimeCard(
+                    anime = show,
+                    onTap = { onNavigateToDetail(show) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(0.72f)
+                )
+            }
+
+            if (isLoadingMore) {
+                item(
+                    key = "loading_more",
+                    contentType = "loading_more",
+                    span = { GridItemSpan(2) }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = AkiraPrimary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
             }

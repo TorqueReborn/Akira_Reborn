@@ -86,7 +86,7 @@ fun CloudflareVerificationDialog(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(26.5.dp),
-                color = AkiraSurface
+                color = MaterialTheme.colorScheme.surface
             ) {
                 Column(
                     modifier = Modifier
@@ -101,7 +101,7 @@ fun CloudflareVerificationDialog(
                             text = "Verify you are human",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = AkiraTextPrimary
+                                color = MaterialTheme.colorScheme.onSurface
                             ),
                             modifier = Modifier.weight(1f)
                         )
@@ -110,14 +110,14 @@ fun CloudflareVerificationDialog(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(androidx.compose.ui.graphics.Color(0xFFF1F5F9))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { onDismiss() },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
                                 contentDescription = "Close",
-                                tint = AkiraTextSecondary,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -130,8 +130,8 @@ fun CloudflareVerificationDialog(
                             .fillMaxWidth()
                             .height(220.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(androidx.compose.ui.graphics.Color(0xFFF8FAFC))
-                            .border(1.dp, androidx.compose.ui.graphics.Color(0xFFE2E8F0), RoundedCornerShape(16.dp)),
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         AndroidView(

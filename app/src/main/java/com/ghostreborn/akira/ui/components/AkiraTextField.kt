@@ -75,7 +75,7 @@ fun AkiraTextField(
             isError -> MaterialTheme.colorScheme.error
             isFocused -> AkiraLogoPurple
             value.isNotEmpty() -> AkiraLogoBlue
-            else -> AkiraTextHint
+            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
         },
         animationSpec = tween(200),
         label = "iconTint"
@@ -86,12 +86,12 @@ fun AkiraTextField(
             .fillMaxWidth()
             .height(56.dp)
             .clip(shape)
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .then(
                 when {
                     isError -> Modifier.border(1.5.dp, MaterialTheme.colorScheme.error, shape)
                     isFocused -> Modifier.border(1.8.dp, AkiraLogoGradientBrush, shape)
-                    else -> Modifier.border(1.2.dp, Color(0xFFE2DCF0), shape)
+                    else -> Modifier.border(1.2.dp, MaterialTheme.colorScheme.outline, shape)
                 }
             )
             .padding(horizontal = 14.dp),
@@ -119,7 +119,7 @@ fun AkiraTextField(
                 interactionSource = interactionSource,
                 singleLine = true,
                 textStyle = TextStyle(
-                    color = AkiraTextPrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 ),
@@ -134,7 +134,7 @@ fun AkiraTextField(
                     if (value.isEmpty()) {
                         Text(
                             text = label,
-                            color = AkiraTextHint,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Normal
                         )
@@ -151,7 +151,7 @@ fun AkiraTextField(
                     Icon(
                         imageVector = if (passwordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
                         contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                        tint = if (passwordVisible) AkiraLogoPink else AkiraTextHint,
+                        tint = if (passwordVisible) AkiraLogoPink else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                         modifier = Modifier.size(20.dp)
                     )
                 }

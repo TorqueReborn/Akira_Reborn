@@ -1,5 +1,6 @@
 package com.ghostreborn.akira
 
+import android.content.res.Configuration
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -8,7 +9,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ghostreborn.akira.features.auth.services.AuthRepository
 import com.ghostreborn.akira.features.auth.services.TokenManager
@@ -32,6 +37,7 @@ import com.ghostreborn.akira.features.auth.widgets.CloudflareVerificationDialog
 import com.ghostreborn.akira.ui.components.AkiraBranding
 import com.ghostreborn.akira.ui.components.AkiraButton
 import com.ghostreborn.akira.ui.components.AkiraTextField
+import com.ghostreborn.akira.ui.theme.AkiraTheme
 import kotlinx.coroutines.launch
 
 @Composable
@@ -103,6 +109,9 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -153,5 +162,14 @@ fun LoginScreen(
                 loading = isLoading
             )
         }
+    }
+}
+
+@Preview(name = "Light Mode")
+@Preview(name = "Dark Mode", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun LoginScreenPreview() {
+    AkiraTheme {
+        LoginScreen(onLoginSuccess = {})
     }
 }

@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,12 +78,14 @@ fun FeaturedAnimeBanner(
             val title = show.englishName ?: show.name
             val artwork = show.banner ?: show.thumbnail
 
+            val bannerShape = RoundedCornerShape(16.dp)
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .shadow(elevation = 12.dp, shape = RoundedCornerShape(22.dp), spotColor = AkiraPrimary)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(Color(0xFFEDE8F5))
+                    .shadow(elevation = 6.dp, shape = bannerShape, spotColor = AkiraPrimary)
+                    .clip(bannerShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { onTap(show) }
             ) {
                 AsyncImage(
@@ -192,7 +195,7 @@ fun FeaturedAnimeBanner(
                             .height(6.dp)
                             .width(if (isSelected) 18.dp else 6.dp)
                             .clip(CircleShape)
-                            .background(if (isSelected) AkiraPrimary else Color(0xFFCBD5E1))
+                            .background(if (isSelected) AkiraPrimary else MaterialTheme.colorScheme.outline)
                     )
                 }
             }

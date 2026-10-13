@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,6 +45,9 @@ fun AkiraButton(
         Modifier
     }
 
+    val disabledBackground = MaterialTheme.colorScheme.surfaceVariant
+    val disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+
     Box(
         modifier = modifier
             .height(52.dp)
@@ -53,7 +57,7 @@ fun AkiraButton(
                 if (isActionable) {
                     AkiraLogoGradientBrush
                 } else {
-                    androidx.compose.ui.graphics.SolidColor(Color(0xFFE5E7EB))
+                    SolidColor(disabledBackground)
                 }
             )
             .clickable(
@@ -79,7 +83,7 @@ fun AkiraButton(
 
             Text(
                 text = if (loading) "Please wait..." else text,
-                color = if (isActionable) Color.White else Color(0xFF9CA3AF),
+                color = if (isActionable) Color.White else disabledTextColor,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.5.sp

@@ -6,12 +6,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.view.WindowCompat
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -23,7 +23,6 @@ import com.ghostreborn.akira.features.home.screens.HomeScreen
 import com.ghostreborn.akira.features.player.models.StreamSource
 import com.ghostreborn.akira.features.player.screens.PlayerScreen
 import com.ghostreborn.akira.features.settings.screens.SettingsScreen
-import com.ghostreborn.akira.ui.theme.AkiraBackground
 import com.ghostreborn.akira.ui.theme.AkiraTheme
 
 import androidx.compose.runtime.collectAsState
@@ -35,16 +34,14 @@ object NavHolder {
     var pendingSources: List<StreamSource> = emptyList()
     var pendingInitialPositionMs: Long = 0L
     var pendingThumbnail: String? = null
+    var pendingEpisodes: List<String> = emptyList()
+    var pendingTranslationType: String = "sub"
 }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = true
-            isAppearanceLightNavigationBars = true
-        }
         enableEdgeToEdge()
 
         val updateManager = UpdateManager.getInstance(this)
@@ -57,7 +54,7 @@ class MainActivity : ComponentActivity() {
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = AkiraBackground
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     AkiraAppNavigation()
 
@@ -137,10 +134,12 @@ fun AkiraAppNavigation() {
                 initialTitle = title,
                 initialPoster = poster,
                 onNavigateBack = { navController.popBackStack() },
-                onPlayEpisode = { epNumber, sources, startMs ->
+                onPlayEpisode = { epNumber, sources, startMs, epList, transType ->
                     NavHolder.pendingSources = sources
                     NavHolder.pendingInitialPositionMs = startMs
                     NavHolder.pendingThumbnail = poster
+                    NavHolder.pendingEpisodes = epList
+                    NavHolder.pendingTranslationType = transType
                     val encodedTitle = Uri.encode(title ?: "Anime")
                     navController.navigate("player/$animeId/$epNumber?title=$encodedTitle")
                 }
@@ -166,6 +165,8 @@ fun AkiraAppNavigation() {
             val sources = NavHolder.pendingSources
             val initialMs = NavHolder.pendingInitialPositionMs
             val thumb = NavHolder.pendingThumbnail
+            val episodes = NavHolder.pendingEpisodes
+            val translationType = NavHolder.pendingTranslationType
 
             PlayerScreen(
                 animeId = animeId,
@@ -174,7 +175,17 @@ fun AkiraAppNavigation() {
                 sources = sources,
                 thumbnail = thumb,
                 initialPositionMs = initialMs,
-                onNavigateBack = { navController.popBackStack() }
+                episodes = episodes,
+                translationType = translationType,
+                onNavigateBack = { navController.popBackStack() },
+                onChangeEpisode = { nextEp, nextSources ->
+                    NavHolder.pendingSources = nextSources
+                    NavHolder.pendingInitialPositionMs = 0L
+                    val encodedTitle = Uri.encode(title)
+                    navController.navigate("player/$animeId/$nextEp?title=$encodedTitle") {
+                        popUpTo("player/$animeId/$episodeNumber?title=$encodedTitle") { inclusive = true }
+                    }
+                }
             )
         }
 

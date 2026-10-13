@@ -106,6 +106,9 @@ data class AnimeDetail(
                 when {
                     json.has("thumbnail") -> json.optString("thumbnail")
                     json.has("cover") -> json.optString("cover")
+                    json.has("poster") -> json.optString("poster")
+                    json.has("image") -> json.optString("image")
+                    json.has("coverImage") -> json.optString("coverImage")
                     else -> null
                 }
             )
@@ -115,6 +118,7 @@ data class AnimeDetail(
                     json.has("banner") -> json.optString("banner")
                     json.has("bannerImage") -> json.optString("bannerImage")
                     json.has("bannerUrl") -> json.optString("bannerUrl")
+                    json.has("cover") -> json.optString("cover")
                     else -> null
                 }
             )
