@@ -24,14 +24,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Explicit
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.FilterAlt
-import androidx.compose.material.icons.rounded.HelpOutline
-import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -91,6 +97,48 @@ fun SettingsScreen(
     val picture = remember { TokenManager.getPicture(context) }
     val isVerified = remember { TokenManager.isEmailVerified(context) }
 
+    var isExporting by remember { mutableStateOf(false) }
+    var isImporting by remember { mutableStateOf(false) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            isExporting = true
+            scope.launch {
+                val result = com.ghostreborn.akira.core.backup.BackupManager.exportToFile(context, uri)
+                isExporting = false
+                if (result.isSuccess) {
+                    Toast.makeText(context, "Backup exported successfully!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Export failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            isImporting = true
+            scope.launch {
+                val result = com.ghostreborn.akira.core.backup.BackupManager.importFromFile(context, uri)
+                isImporting = false
+                if (result.isSuccess) {
+                    // Update state variables to match restored preferences
+                    AnimeRepository.loadContentPreferences(context)
+                    allowAdult = AnimeRepository.allowAdult
+                    denyEcchi = AnimeRepository.denyEcchi
+                    allowUnknown = AnimeRepository.allowUnknown
+                    Toast.makeText(context, "Backup restored successfully!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Restore failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -120,7 +168,7 @@ fun SettingsScreen(
                         .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = "Back",
                         tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(20.dp)
@@ -283,7 +331,7 @@ fun SettingsScreen(
                     )
 
                     FilterSwitchTile(
-                        icon = Icons.Rounded.HelpOutline,
+                        icon = Icons.AutoMirrored.Rounded.HelpOutline,
                         title = "Allow Unrated Content",
                         subtitle = "Include anime without age certification",
                         checked = allowUnknown,
@@ -422,6 +470,151 @@ fun SettingsScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Data Management Section
+            Text(
+                text = "DATA BACKUP & RESTORE",
+                style = TextStyle(
+                    brush = AkiraLogoGradientBrush,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.5.sp
+                ),
+                modifier = Modifier.padding(start = 6.dp, bottom = 10.dp)
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(22.dp))
+                    .padding(20.dp)
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Save,
+                                contentDescription = null,
+                                tint = AkiraPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Export & Import App Data",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Backup favorites, watch progress & preferences into a JSON file",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Export Button
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(AkiraLogoGradientBrush)
+                                .clickable(enabled = !isExporting && !isImporting) {
+                                    val fileName = "akira_backup_${System.currentTimeMillis() / 1000}.json"
+                                    exportLauncher.launch(fileName)
+                                }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isExporting) {
+                                CircularProgressIndicator(
+                                    strokeWidth = 2.dp,
+                                    color = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.FileUpload,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Export",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+
+                        // Import Button
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .clickable(enabled = !isExporting && !isImporting) {
+                                    importLauncher.launch(arrayOf("application/json", "*/*"))
+                                }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isImporting) {
+                                CircularProgressIndicator(
+                                    strokeWidth = 2.dp,
+                                    color = AkiraPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.FileDownload,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Import",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             // Logout Action Button (Flat, no elevation, gradientized with AkiraLogoGradientBrush)
@@ -451,7 +644,7 @@ fun SettingsScreen(
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Rounded.Logout,
+                            imageVector = Icons.AutoMirrored.Rounded.Logout,
                             contentDescription = "Log Out",
                             tint = Color.White,
                             modifier = Modifier.size(19.dp)

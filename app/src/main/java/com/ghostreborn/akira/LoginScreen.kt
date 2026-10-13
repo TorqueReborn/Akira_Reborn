@@ -11,9 +11,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.rememberScrollState
@@ -34,12 +35,29 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.ghostreborn.akira.core.backup.BackupManager
 import com.ghostreborn.akira.features.auth.services.AuthRepository
 import com.ghostreborn.akira.features.auth.services.TokenManager
 import com.ghostreborn.akira.features.auth.widgets.CloudflareVerificationDialog
 import com.ghostreborn.akira.ui.components.AkiraBranding
 import com.ghostreborn.akira.ui.components.AkiraButton
 import com.ghostreborn.akira.ui.components.AkiraTextField
+import com.ghostreborn.akira.ui.theme.AkiraPrimary
 import com.ghostreborn.akira.ui.theme.AkiraTheme
 import kotlinx.coroutines.launch
 
@@ -54,10 +72,33 @@ fun LoginScreen(
     var password by rememberSaveable { mutableStateOf("") }
 
     var isLoading by remember { mutableStateOf(false) }
+    var isImporting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showCaptchaDialog by remember { mutableStateOf(false) }
 
     var preloadedToken by remember { mutableStateOf<String?>(null) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            isImporting = true
+            scope.launch {
+                val result = BackupManager.importFromFile(context, uri)
+                isImporting = false
+                if (result.isSuccess) {
+                    val authRestored = result.getOrDefault(false)
+                    Toast.makeText(context, "Backup imported successfully!", Toast.LENGTH_SHORT).show()
+                    if (authRestored) {
+                        onLoginSuccess()
+                    }
+                } else {
+                    val error = result.exceptionOrNull()?.message ?: "Failed to import file"
+                    Toast.makeText(context, "Import failed: $error", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     fun performLogin(turnstileToken: String) {
         isLoading = true
@@ -185,9 +226,49 @@ fun LoginScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading,
+                enabled = !isLoading && !isImporting,
                 loading = isLoading
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Restore from Backup Button
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                    .clickable(enabled = !isLoading && !isImporting) {
+                        importLauncher.launch(arrayOf("application/json", "*/*"))
+                    }
+                    .padding(vertical = 13.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isImporting) {
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        color = AkiraPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.FileDownload,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Import Data Backup",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
         }
     }
 }
