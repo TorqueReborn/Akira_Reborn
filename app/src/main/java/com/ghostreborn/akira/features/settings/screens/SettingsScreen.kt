@@ -78,7 +78,10 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var allowAdult by remember { mutableStateOf(AnimeRepository.allowAdult) }
+    var allowAdult by remember {
+        AnimeRepository.loadContentPreferences(context)
+        mutableStateOf(AnimeRepository.allowAdult)
+    }
     var denyEcchi by remember { mutableStateOf(AnimeRepository.denyEcchi) }
     var allowUnknown by remember { mutableStateOf(AnimeRepository.allowUnknown) }
     var isLoggingOut by remember { mutableStateOf(false) }

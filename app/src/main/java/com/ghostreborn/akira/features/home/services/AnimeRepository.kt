@@ -124,6 +124,9 @@ class DefaultAnimeRepository(
         const val PREF_ALLOW_UNKNOWN = "pref_allow_unknown"
     }
 
+    @Volatile
+    private var preferencesLoaded: Boolean = false
+
     override var allowAdult: Boolean = false
     override var denyEcchi: Boolean = false
     override var allowUnknown: Boolean = false
@@ -141,6 +144,7 @@ class DefaultAnimeRepository(
         allowAdult = prefs.getBoolean(InternalConstants.PREF_ALLOW_ADULT, false)
         denyEcchi = prefs.getBoolean(InternalConstants.PREF_DENY_ECCHI, false)
         allowUnknown = prefs.getBoolean(InternalConstants.PREF_ALLOW_UNKNOWN, false)
+        preferencesLoaded = true
     }
 
     override fun updateContentPreferences(
@@ -203,6 +207,10 @@ class DefaultAnimeRepository(
         val config = if (context != null) MkissaConfigProvider.getConfig(context) else MkissaConfigProvider.currentConfig
         val buildId = config.buildId
         val queryHash = config.getOperationHash(OperationRegistry.OP_BROWSE)
+
+        if (!preferencesLoaded && context != null) {
+            loadContentPreferences(context)
+        }
 
         val searchObj = JSONObject().apply {
             put("listProfile", listProfile)

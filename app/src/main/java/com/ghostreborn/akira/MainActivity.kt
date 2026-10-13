@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         TokenManager.init(this)
+        com.ghostreborn.akira.features.home.services.AnimeRepository.loadContentPreferences(this)
         val updateManager = UpdateManager.getInstance(this)
         updateManager.checkForUpdates(isManual = false)
 
