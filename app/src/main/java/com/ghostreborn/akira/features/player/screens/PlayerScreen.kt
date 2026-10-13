@@ -181,21 +181,21 @@ fun PlayerScreen(
 
     var isFastForwarding2x by remember { mutableStateOf(false) }
 
-    // Immersive landscape orientation lock
+    // Immersive landscape orientation lock & window insets restoration on exit
     DisposableEffect(Unit) {
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
 
         val window = activity?.window
         if (window != null) {
             val controller = WindowCompat.getInsetsController(window, window.decorView)
-            controller.hide(WindowInsetsCompat.Type.systemBars())
             controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
         onDispose {
-            // Restore portrait orientation and window insets on exit
+            // Restore portrait orientation, window insets, and clear keep-screen-on flag
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             if (window != null) {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 val controller = WindowCompat.getInsetsController(window, window.decorView)
                 controller.show(WindowInsetsCompat.Type.systemBars())
                 val lp = window.attributes
@@ -203,6 +203,32 @@ fun PlayerScreen(
                 window.attributes = lp
             }
         }
+    }
+
+    // Toggle full screen system bars in sync with controls visibility
+    LaunchedEffect(showControls) {
+        val window = activity?.window
+        if (window != null) {
+            val controller = WindowCompat.getInsetsController(window, window.decorView)
+            if (showControls) {
+                controller.show(WindowInsetsCompat.Type.systemBars())
+            } else {
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    // Keep screen awake while actively playing video
+    DisposableEffect(isPlaying) {
+        val window = activity?.window
+        if (window != null) {
+            if (isPlaying) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
+        onDispose { }
     }
 
     // Initialize ExoPlayer
@@ -457,6 +483,7 @@ fun PlayerScreen(
                 PlayerView(ctx).apply {
                     player = exoPlayer
                     useController = false
+                    keepScreenOn = true
                     this.resizeMode = resizeMode
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -467,6 +494,7 @@ fun PlayerScreen(
             },
             update = { view ->
                 view.resizeMode = resizeMode
+                view.keepScreenOn = isPlaying
             }
         )
 
