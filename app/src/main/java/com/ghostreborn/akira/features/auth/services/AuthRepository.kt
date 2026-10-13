@@ -61,10 +61,8 @@ mutation {
 }
 """
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .build()
+    private val httpClient: OkHttpClient
+        get() = com.ghostreborn.akira.core.di.ServiceLocator.okHttpClient
 
     fun hashPasswordToSha256(password: String): String {
         val md = MessageDigest.getInstance("SHA-256")

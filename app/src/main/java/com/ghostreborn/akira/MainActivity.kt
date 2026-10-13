@@ -2,6 +2,7 @@ package com.ghostreborn.akira
 
 import android.net.Uri
 import android.os.Bundle
+import kotlinx.coroutines.launch
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -23,13 +25,11 @@ import com.ghostreborn.akira.features.home.screens.HomeScreen
 import com.ghostreborn.akira.features.player.models.StreamSource
 import com.ghostreborn.akira.features.player.screens.PlayerScreen
 import com.ghostreborn.akira.features.settings.screens.SettingsScreen
-import com.ghostreborn.akira.ui.theme.AkiraTheme
-
-import androidx.compose.runtime.collectAsState
 import com.ghostreborn.akira.features.updater.services.UpdateManager
 import com.ghostreborn.akira.features.updater.ui.UpdateDialog
+import com.ghostreborn.akira.ui.theme.AkiraTheme
 
-// Shared holder for transient navigation arguments like stream sources list
+@Deprecated("Transient state holder for legacy navigation. Migration to ViewModel state in progress.")
 object NavHolder {
     var pendingSources: List<StreamSource> = emptyList()
     var pendingInitialPositionMs: Long = 0L
@@ -44,9 +44,18 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
 
+        TokenManager.init(this)
         val updateManager = UpdateManager.getInstance(this)
-        // Check for updates automatically subject to 24-hr freshness interval
         updateManager.checkForUpdates(isManual = false)
+
+        // Pre-warm dynamic crypto config asynchronously so login and feed loads don't lag
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                com.ghostreborn.akira.core.config.MkissaConfigProvider.getConfig(applicationContext)
+            } catch (_: Exception) {
+                // Background warmup failure is non-fatal; fallbacks exist
+            }
+        }
 
         setContent {
             AkiraTheme {
@@ -83,7 +92,6 @@ fun AkiraAppNavigation() {
         navController = navController,
         startDestination = startDestination
     ) {
-        // --- 1. LOGIN SCREEN ---
         composable("login") {
             LoginScreen(
                 onLoginSuccess = {
@@ -94,7 +102,6 @@ fun AkiraAppNavigation() {
             )
         }
 
-        // --- 2. HOME SCREEN ---
         composable("home") {
             HomeScreen(
                 onNavigateToDetail = { anime ->
@@ -108,7 +115,6 @@ fun AkiraAppNavigation() {
             )
         }
 
-        // --- 3. ANIME DETAIL SCREEN ---
         composable(
             route = "detail/{animeId}?title={title}&poster={poster}",
             arguments = listOf(
@@ -131,8 +137,8 @@ fun AkiraAppNavigation() {
 
             AnimeDetailScreen(
                 animeId = animeId,
-                initialTitle = title,
-                initialPoster = poster,
+                titleHint = title,
+                posterHint = poster,
                 onNavigateBack = { navController.popBackStack() },
                 onPlayEpisode = { epNumber, sources, startMs, epList, transType ->
                     NavHolder.pendingSources = sources
@@ -146,7 +152,6 @@ fun AkiraAppNavigation() {
             )
         }
 
-        // --- 4. VIDEO PLAYER SCREEN ---
         composable(
             route = "player/{animeId}/{episodeNumber}?title={title}",
             arguments = listOf(
@@ -189,7 +194,6 @@ fun AkiraAppNavigation() {
             )
         }
 
-        // --- 5. SETTINGS SCREEN ---
         composable("settings") {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },

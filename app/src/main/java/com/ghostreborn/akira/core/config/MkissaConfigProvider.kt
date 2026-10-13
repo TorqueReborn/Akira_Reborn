@@ -203,10 +203,8 @@ object MkissaConfigProvider {
     const val FRONTEND_INDEX_URL = "https://mkissa.to/"
     const val CDN_BASE_URL = "https://cdn.mkissa.net"
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(12, TimeUnit.SECONDS)
-        .readTimeout(12, TimeUnit.SECONDS)
-        .build()
+    private val httpClient: OkHttpClient
+        get() = com.ghostreborn.akira.core.di.ServiceLocator.okHttpClient
 
     @Volatile
     private var memoryConfig: MkissaClientConfig? = null

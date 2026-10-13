@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,7 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +57,8 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showCaptchaDialog by remember { mutableStateOf(false) }
 
+    var preloadedToken by remember { mutableStateOf<String?>(null) }
+
     fun performLogin(turnstileToken: String) {
         isLoading = true
         errorMessage = null
@@ -84,10 +89,27 @@ fun LoginScreen(
             } catch (e: Exception) {
                 Log.e("LoginScreen", "Auth error: ${e.message}", e)
                 errorMessage = e.message ?: "Authentication failed"
+                preloadedToken = null // Reset token on failure so next attempt gets a fresh one
                 Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
             } finally {
                 isLoading = false
             }
+        }
+    }
+
+    // Invisible background preloader to solve Turnstile while user enters credentials
+    if (preloadedToken == null) {
+        Box(modifier = Modifier.size(1.dp).alpha(0.001f)) {
+            com.ghostreborn.akira.features.auth.widgets.TurnstileWebView(
+                onTokenExtracted = { token ->
+                    Log.d("LoginScreen", "Turnstile preloaded in background")
+                    preloadedToken = token
+                    if (showCaptchaDialog) {
+                        showCaptchaDialog = false
+                        performLogin(token)
+                    }
+                }
+            )
         }
     }
 
@@ -155,7 +177,12 @@ fun LoginScreen(
             AkiraButton(
                 text = "Login",
                 onClick = {
-                    showCaptchaDialog = true
+                    val token = preloadedToken
+                    if (!token.isNullOrBlank()) {
+                        performLogin(token)
+                    } else {
+                        showCaptchaDialog = true
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading,

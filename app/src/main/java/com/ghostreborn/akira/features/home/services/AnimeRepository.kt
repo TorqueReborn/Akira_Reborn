@@ -3,8 +3,10 @@ package com.ghostreborn.akira.features.home.services
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.ghostreborn.akira.core.config.MkissaClientConfig
 import com.ghostreborn.akira.core.config.MkissaConfigProvider
 import com.ghostreborn.akira.core.config.OperationRegistry
+import com.ghostreborn.akira.core.di.ServiceLocator
 import com.ghostreborn.akira.features.home.models.AnimeDetail
 import com.ghostreborn.akira.features.home.models.AnimePageResult
 import com.ghostreborn.akira.features.home.models.AnimeShow
@@ -28,77 +30,144 @@ data class EpisodeFetchResult(
     val bootstrapEpoch: Long
 )
 
-object AnimeRepository {
-    private const val TAG = "AnimeRepository"
+interface AnimeRepository {
+    var allowAdult: Boolean
+    var denyEcchi: Boolean
+    var allowUnknown: Boolean
 
-    val BASE_URL: String
-        get() = MkissaConfigProvider.currentEndpoints.apiBaseUrl
-
-    // Preferences
-    var allowAdult: Boolean = false
-    var denyEcchi: Boolean = false
-    var allowUnknown: Boolean = false
-
-    private const val PREFS_NAME = "akira_content_prefs"
-    private const val PREF_ALLOW_ADULT = "pref_allow_adult"
-    private const val PREF_DENY_ECCHI = "pref_deny_ecchi"
-    private const val PREF_ALLOW_UNKNOWN = "pref_allow_unknown"
-
-    fun loadContentPreferences(context: Context) {
-        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        allowAdult = prefs.getBoolean(PREF_ALLOW_ADULT, false)
-        denyEcchi = prefs.getBoolean(PREF_DENY_ECCHI, false)
-        allowUnknown = prefs.getBoolean(PREF_ALLOW_UNKNOWN, false)
-    }
-
+    fun loadContentPreferences(context: Context)
     fun updateContentPreferences(
         context: Context,
         newAllowAdult: Boolean? = null,
         newDenyEcchi: Boolean? = null,
         newAllowUnknown: Boolean? = null
-    ) {
-        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val editor = prefs.edit()
-        newAllowAdult?.let {
-            allowAdult = it
-            editor.putBoolean(PREF_ALLOW_ADULT, it)
-        }
-        newDenyEcchi?.let {
-            denyEcchi = it
-            editor.putBoolean(PREF_DENY_ECCHI, it)
-        }
-        newAllowUnknown?.let {
-            allowUnknown = it
-            editor.putBoolean(PREF_ALLOW_UNKNOWN, it)
-        }
-        editor.apply()
-        clearCache()
+    )
+    fun clearCache()
+
+    suspend fun fetchAnimeList(
+        page: Int = 1,
+        limit: Int = 26,
+        translationType: String = "sub",
+        listProfile: String = "browse",
+        searchQuery: String? = null,
+        sortBy: String? = null,
+        countryOrigin: String? = null,
+        season: String? = null,
+        seasonYear: Int? = null,
+        context: Context? = null
+    ): AnimePageResult
+
+    suspend fun fetchTopRankedAnime(
+        dateRange: Int = 1,
+        size: Int = 15,
+        context: Context? = null
+    ): List<AnimeShow>
+
+    suspend fun fetchAnimeDetail(
+        animeId: String,
+        context: Context? = null
+    ): AnimeDetail
+
+    suspend fun fetchEpisodeStreams(
+        context: Context,
+        showId: String,
+        episodeString: String,
+        translationType: String = "sub",
+        authToken: String? = null
+    ): EpisodeFetchResult
+
+    companion object : AnimeRepository {
+        private val repo: AnimeRepository get() = ServiceLocator.animeRepository
+
+        override var allowAdult: Boolean
+            get() = repo.allowAdult
+            set(value) { repo.allowAdult = value }
+
+        override var denyEcchi: Boolean
+            get() = repo.denyEcchi
+            set(value) { repo.denyEcchi = value }
+
+        override var allowUnknown: Boolean
+            get() = repo.allowUnknown
+            set(value) { repo.allowUnknown = value }
+
+        override fun loadContentPreferences(context: Context) = repo.loadContentPreferences(context)
+        override fun updateContentPreferences(context: Context, newAllowAdult: Boolean?, newDenyEcchi: Boolean?, newAllowUnknown: Boolean?) = repo.updateContentPreferences(context, newAllowAdult, newDenyEcchi, newAllowUnknown)
+        override fun clearCache() = repo.clearCache()
+
+        override suspend fun fetchAnimeList(page: Int, limit: Int, translationType: String, listProfile: String, searchQuery: String?, sortBy: String?, countryOrigin: String?, season: String?, seasonYear: Int?, context: Context?) =
+            repo.fetchAnimeList(page, limit, translationType, listProfile, searchQuery, sortBy, countryOrigin, season, seasonYear, context)
+
+        override suspend fun fetchTopRankedAnime(dateRange: Int, size: Int, context: Context?) =
+            repo.fetchTopRankedAnime(dateRange, size, context)
+
+        override suspend fun fetchAnimeDetail(animeId: String, context: Context?) =
+            repo.fetchAnimeDetail(animeId, context)
+
+        override suspend fun fetchEpisodeStreams(context: Context, showId: String, episodeString: String, translationType: String, authToken: String?) =
+            repo.fetchEpisodeStreams(context, showId, episodeString, translationType, authToken)
     }
+}
 
-    // Dynamic persisted query hash getters with fallback
-    val BROWSE_PERSISTED_QUERY_HASH: String
-        get() = MkissaConfigProvider.currentConfig.getOperationHash(OperationRegistry.OP_BROWSE)
-
-    val TOP_RANKED_PERSISTED_QUERY_HASH: String
-        get() = MkissaConfigProvider.currentConfig.getOperationHash(OperationRegistry.OP_TOP_RANKED)
-
-    val DETAIL_PERSISTED_QUERY_HASH: String
-        get() = MkissaConfigProvider.currentConfig.getOperationHash(OperationRegistry.OP_DETAIL)
-
-    val EPISODE_PERSISTED_QUERY_HASH: String
-        get() = MkissaConfigProvider.currentConfig.getOperationHash(OperationRegistry.OP_EPISODE)
-
-    private val httpClient = OkHttpClient.Builder()
+class DefaultAnimeRepository(
+    private val httpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
+) : AnimeRepository {
+
+    private object InternalConstants {
+        const val TAG = "DefaultAnimeRepository"
+        const val PREFS_NAME = "akira_content_prefs"
+        const val PREF_ALLOW_ADULT = "pref_allow_adult"
+        const val PREF_DENY_ECCHI = "pref_deny_ecchi"
+        const val PREF_ALLOW_UNKNOWN = "pref_allow_unknown"
+    }
+
+    override var allowAdult: Boolean = false
+    override var denyEcchi: Boolean = false
+    override var allowUnknown: Boolean = false
 
     private val pageCache = ConcurrentHashMap<String, AnimePageResult>()
     private val detailCache = ConcurrentHashMap<String, AnimeDetail>()
     @Volatile
     private var topRankedCache: List<AnimeShow>? = null
 
-    fun clearCache() {
+    private val baseUrl: String
+        get() = MkissaConfigProvider.currentEndpoints.apiBaseUrl
+
+    override fun loadContentPreferences(context: Context) {
+        val prefs = context.applicationContext.getSharedPreferences(InternalConstants.PREFS_NAME, Context.MODE_PRIVATE)
+        allowAdult = prefs.getBoolean(InternalConstants.PREF_ALLOW_ADULT, false)
+        denyEcchi = prefs.getBoolean(InternalConstants.PREF_DENY_ECCHI, false)
+        allowUnknown = prefs.getBoolean(InternalConstants.PREF_ALLOW_UNKNOWN, false)
+    }
+
+    override fun updateContentPreferences(
+        context: Context,
+        newAllowAdult: Boolean?,
+        newDenyEcchi: Boolean?,
+        newAllowUnknown: Boolean?
+    ) {
+        val prefs = context.applicationContext.getSharedPreferences(InternalConstants.PREFS_NAME, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        newAllowAdult?.let {
+            allowAdult = it
+            editor.putBoolean(InternalConstants.PREF_ALLOW_ADULT, it)
+        }
+        newDenyEcchi?.let {
+            denyEcchi = it
+            editor.putBoolean(InternalConstants.PREF_DENY_ECCHI, it)
+        }
+        newAllowUnknown?.let {
+            allowUnknown = it
+            editor.putBoolean(InternalConstants.PREF_ALLOW_UNKNOWN, it)
+        }
+        editor.apply()
+        clearCache()
+    }
+
+    override fun clearCache() {
         pageCache.clear()
         detailCache.clear()
         topRankedCache = null
@@ -119,17 +188,17 @@ object AnimeRepository {
         )
     }
 
-    suspend fun fetchAnimeList(
-        page: Int = 1,
-        limit: Int = 26,
-        translationType: String = "sub",
-        listProfile: String = "browse",
-        searchQuery: String? = null,
-        sortBy: String? = null,
-        countryOrigin: String? = null,
-        season: String? = null,
-        seasonYear: Int? = null,
-        context: Context? = null
+    override suspend fun fetchAnimeList(
+        page: Int,
+        limit: Int,
+        translationType: String,
+        listProfile: String,
+        searchQuery: String?,
+        sortBy: String?,
+        countryOrigin: String?,
+        season: String?,
+        seasonYear: Int?,
+        context: Context?
     ): AnimePageResult = withContext(Dispatchers.IO) {
         val config = if (context != null) MkissaConfigProvider.getConfig(context) else MkissaConfigProvider.currentConfig
         val buildId = config.buildId
@@ -171,7 +240,7 @@ object AnimeRepository {
 
         val encodedVars = Uri.encode(variablesObj.toString())
         val encodedExts = Uri.encode(extensionsObj.toString())
-        val fullUrl = "$BASE_URL?variables=$encodedVars&extensions=$encodedExts"
+        val fullUrl = "$baseUrl?variables=$encodedVars&extensions=$encodedExts"
 
         if (q.isNullOrEmpty()) {
             pageCache[fullUrl]?.let { return@withContext it }
@@ -192,10 +261,10 @@ object AnimeRepository {
         }
     }
 
-    suspend fun fetchTopRankedAnime(
-        dateRange: Int = 1,
-        size: Int = 15,
-        context: Context? = null
+    override suspend fun fetchTopRankedAnime(
+        dateRange: Int,
+        size: Int,
+        context: Context?
     ): List<AnimeShow> = withContext(Dispatchers.IO) {
         topRankedCache?.takeIf { it.isNotEmpty() }?.let { return@withContext it }
 
@@ -221,7 +290,7 @@ object AnimeRepository {
 
         val encodedVars = Uri.encode(variablesObj.toString())
         val encodedExts = Uri.encode(extensionsObj.toString())
-        val fullUrl = "$BASE_URL?variables=$encodedVars&extensions=$encodedExts"
+        val fullUrl = "$baseUrl?variables=$encodedVars&extensions=$encodedExts"
 
         val reqBuilder = Request.Builder().url(fullUrl)
         getHeaders(buildId).forEach { (k, v) -> reqBuilder.header(k, v) }
@@ -249,9 +318,9 @@ object AnimeRepository {
         }
     }
 
-    suspend fun fetchAnimeDetail(
+    override suspend fun fetchAnimeDetail(
         animeId: String,
-        context: Context? = null
+        context: Context?
     ): AnimeDetail = withContext(Dispatchers.IO) {
         detailCache[animeId]?.let { return@withContext it }
 
@@ -279,7 +348,7 @@ object AnimeRepository {
 
         val encodedVars = Uri.encode(variablesObj.toString())
         val encodedExts = Uri.encode(extensionsObj.toString())
-        val fullUrl = "$BASE_URL?variables=$encodedVars&extensions=$encodedExts"
+        val fullUrl = "$baseUrl?variables=$encodedVars&extensions=$encodedExts"
 
         val reqBuilder = Request.Builder().url(fullUrl)
         getHeaders(buildId).forEach { (k, v) -> reqBuilder.header(k, v) }
@@ -332,17 +401,16 @@ object AnimeRepository {
         return AnimePageResult(shows = list, total = total, page = page)
     }
 
-    suspend fun fetchEpisodeStreams(
+    override suspend fun fetchEpisodeStreams(
         context: Context,
         showId: String,
         episodeString: String,
-        translationType: String = "sub",
-        authToken: String? = null
+        translationType: String,
+        authToken: String?
     ): EpisodeFetchResult = withContext(Dispatchers.IO) {
         require(showId.isNotBlank()) { "Show ID cannot be empty." }
         require(episodeString.isNotBlank()) { "Episode string cannot be empty." }
 
-        // Initialize/resolve configuration first
         var config = MkissaConfigProvider.getConfig(context)
         val queryHash = config.getOperationHash(OperationRegistry.OP_EPISODE)
         val effectiveLane = OperationRegistry.resolveLaneForQuery(OperationRegistry.OP_EPISODE)
@@ -350,7 +418,7 @@ object AnimeRepository {
 
         fun executeEpisodeQuery(
             bootstrap: CryptoBootstrap,
-            cfg: com.ghostreborn.akira.core.config.MkissaClientConfig,
+            cfg: MkissaClientConfig,
             explicitAaReq: String? = null
         ): String {
             val effectiveAaReq = explicitAaReq ?: Decryptor.generateAaReq(
@@ -375,7 +443,7 @@ object AnimeRepository {
                 put("aaReq", effectiveAaReq)
             }
 
-            val fullUrl = "$BASE_URL?variables=${Uri.encode(variablesObj.toString())}&extensions=${Uri.encode(extensionsObj.toString())}"
+            val fullUrl = "$baseUrl?variables=${Uri.encode(variablesObj.toString())}&extensions=${Uri.encode(extensionsObj.toString())}"
             val reqBuilder = Request.Builder().url(fullUrl)
             getHeaders(cfg.buildId).forEach { (k, v) -> reqBuilder.header(k, v) }
 
@@ -393,7 +461,6 @@ object AnimeRepository {
             }
         }
 
-        // Step 1: Obtain bootstrap for lane and resolved buildId
         var bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, buildId = config.buildId, authToken = authToken, config = config)
         var responseStr = executeEpisodeQuery(bootstrap, config)
 
@@ -413,9 +480,8 @@ object AnimeRepository {
                     u.contains("INVALID_BOOT_TOKEN")
         }
 
-        // Recovery: Unknown build ID or rejected boot token (max 1 retry)
         if (checkBuildIdError(responseStr) || responseStr.contains("invalid_boot_token")) {
-            Log.d(TAG, "Unknown build id or invalid boot token encountered. Invalidation retry...")
+            Log.d(InternalConstants.TAG, "Unknown build id or invalid boot token encountered. Invalidation retry...")
             MkissaConfigProvider.invalidate(context)
             Decryptor.invalidateBootstrapCacheForLane(effectiveLane)
 
@@ -430,7 +496,7 @@ object AnimeRepository {
                 )
                 responseStr = executeEpisodeQuery(bootstrap, config, freshAaReq)
             } catch (e: Exception) {
-                Log.e(TAG, "Build ID / boot recovery retry failed: $e")
+                Log.e(InternalConstants.TAG, "Build ID / boot recovery retry failed: $e")
             }
 
             if (checkBuildIdError(responseStr)) {
@@ -438,9 +504,8 @@ object AnimeRepository {
             }
         }
 
-        // Recovery: Crypto expired / stale (max 1 retry)
         if (checkCryptoError(responseStr)) {
-            Log.d(TAG, "AA_CRYPTO error. Retrying with fresh bootstrap...")
+            Log.d(InternalConstants.TAG, "AA_CRYPTO error. Retrying with fresh bootstrap...")
             Decryptor.invalidateBootstrapCacheForLane(effectiveLane)
 
             try {
@@ -453,11 +518,10 @@ object AnimeRepository {
                 )
                 responseStr = executeEpisodeQuery(bootstrap, config, freshAaReq)
             } catch (e: Exception) {
-                Log.e(TAG, "Crypto retry failed: $e")
+                Log.e(InternalConstants.TAG, "Crypto retry failed: $e")
             }
         }
 
-        // Parse and Decrypt
         val root = JSONObject(responseStr)
         if (root.has("errors")) {
             val errors = root.optJSONArray("errors")
