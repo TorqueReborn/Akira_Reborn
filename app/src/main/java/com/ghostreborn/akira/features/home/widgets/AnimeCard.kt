@@ -58,6 +58,9 @@ fun AnimeCard(
         val request = remember(anime.thumbnail) {
             ImageRequest.Builder(context)
                 .data(anime.thumbnail)
+                .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                .networkCachePolicy(coil.request.CachePolicy.ENABLED)
                 .apply {
                     ImageUtils.imageHeaders.forEach { (k, v) ->
                         addHeader(k, v)

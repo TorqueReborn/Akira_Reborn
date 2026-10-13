@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -125,11 +126,53 @@ fun AnimeDetailScreen(
 
     val episodes = remember(detail, selectedAudioTab) {
         val d = detail ?: return@remember emptyList()
-        when (selectedAudioTab) {
+        val rawList = when (selectedAudioTab) {
             "SUB" -> if (d.episodesDetail.sub.isNotEmpty()) d.episodesDetail.sub else (1..d.availableEpisodesSub).map { "$it" }
             "DUB" -> if (d.episodesDetail.dub.isNotEmpty()) d.episodesDetail.dub else (1..d.availableEpisodesDub).map { "$it" }
             else -> d.episodesDetail.raw
         }
+        // Sort naturally ascending so Episode 1 appears first, through the newest episode
+        rawList.sortedWith(Comparator { a, b ->
+            val numA = a.toDoubleOrNull()
+            val numB = b.toDoubleOrNull()
+            if (numA != null && numB != null) numA.compareTo(numB)
+            else a.compareTo(b, ignoreCase = true)
+        })
+    }
+
+    // Categorize into chunks of 100 episodes if total episodes > 100
+    val episodeChunks = remember(episodes) {
+        if (episodes.size > 100) episodes.chunked(100) else emptyList()
+    }
+
+    val episodeRanges = remember(episodeChunks) {
+        episodeChunks.map { subList ->
+            val first = subList.firstOrNull() ?: ""
+            val last = subList.lastOrNull() ?: ""
+            "$first - $last"
+        }
+    }
+
+    var selectedRangeIndex by remember(episodes) {
+        // Automatically default to the range containing the last watched episode if present
+        val initialIdx = if (episodes.size > 100 && lastWatchedEp != null) {
+            val epIdx = episodes.indexOf(lastWatchedEp)
+            if (epIdx >= 0) epIdx / 100 else 0
+        } else 0
+        mutableIntStateOf(initialIdx)
+    }
+
+    val visibleEpisodes = remember(episodes, selectedRangeIndex, episodeChunks) {
+        if (episodeChunks.isNotEmpty()) {
+            val safeIdx = selectedRangeIndex.coerceIn(0, episodeChunks.lastIndex)
+            episodeChunks[safeIdx]
+        } else {
+            episodes
+        }
+    }
+
+    val chunkedEpisodes = remember(visibleEpisodes) {
+        visibleEpisodes.chunked(5)
     }
 
     fun playEpisode(epStr: String, startMs: Long = 0L) {
@@ -518,12 +561,42 @@ fun AnimeDetailScreen(
                         }
 
                         Spacer(modifier = Modifier.height(14.dp))
+
+                        // Range selector chips (1-100, 101-200, ...) for anime with many episodes
+                        if (episodeRanges.isNotEmpty()) {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                itemsIndexed(episodeRanges) { index, rangeLabel ->
+                                    val isSelected = selectedRangeIndex == index
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .then(
+                                                if (isSelected) Modifier.background(AkiraLogoGradientBrush)
+                                                else Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
+                                            )
+                                            .clickable { selectedRangeIndex = index }
+                                            .padding(horizontal = 14.dp, vertical = 7.dp)
+                                    ) {
+                                        Text(
+                                            text = rangeLabel,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
                     }
                 }
 
-                // Episodes Grid/List
-                item {
-                    if (episodes.isEmpty()) {
+                // Episodes Grid/List (Virtualized row items in LazyColumn for zero lag on 1000+ episodes)
+                if (episodes.isEmpty()) {
+                    item(key = "episodes_empty") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -532,61 +605,61 @@ fun AnimeDetailScreen(
                         ) {
                             Text(text = "No episodes available for $selectedAudioTab", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    } else {
-                        // Grid of episode numbers
-                        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                            val chunked = episodes.chunked(5)
-                            chunked.forEach { rowEps ->
-                                Row(
+                    }
+                } else {
+                    items(
+                        items = chunkedEpisodes,
+                        key = { row -> "ep_row_${row.firstOrNull() ?: ""}" },
+                        contentType = { "episode_row" }
+                    ) { rowEps ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp)
+                                .padding(bottom = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowEps.forEach { epStr ->
+                                val isCurrentLoading = loadingEpisodeString == epStr
+                                val isLastWatched = lastWatchedEp == epStr
+                                Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 10.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    rowEps.forEach { epStr ->
-                                        val isCurrentLoading = loadingEpisodeString == epStr
-                                        val isLastWatched = lastWatchedEp == epStr
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(44.dp)
-                                                .shadow(if (isLastWatched || isCurrentLoading) 3.dp else 1.dp, RoundedCornerShape(12.dp))
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .then(
-                                                    when {
-                                                        isCurrentLoading -> Modifier.background(AkiraLogoGradientBrush)
-                                                        isLastWatched -> Modifier
-                                                            .background(MaterialTheme.colorScheme.surface)
-                                                            .border(1.5.dp, AkiraLogoGradientBrush, RoundedCornerShape(12.dp))
-                                                        else -> Modifier
-                                                            .background(MaterialTheme.colorScheme.surface)
-                                                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-                                                    }
-                                                )
-                                                .clickable(enabled = loadingEpisodeString == null) { playEpisode(epStr) },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            if (isCurrentLoading) {
-                                                CircularProgressIndicator(
-                                                    color = Color.White,
-                                                    strokeWidth = 2.dp,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            } else {
-                                                Text(
-                                                    text = epStr,
-                                                    color = if (isLastWatched) AkiraPrimary else MaterialTheme.colorScheme.onSurface,
-                                                    fontWeight = if (isLastWatched) FontWeight.ExtraBold else FontWeight.Bold,
-                                                    fontSize = 13.sp
-                                                )
+                                        .weight(1f)
+                                        .height(44.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .then(
+                                            when {
+                                                isCurrentLoading -> Modifier.background(AkiraLogoGradientBrush)
+                                                isLastWatched -> Modifier
+                                                    .background(MaterialTheme.colorScheme.surface)
+                                                    .border(1.5.dp, AkiraLogoGradientBrush, RoundedCornerShape(12.dp))
+                                                else -> Modifier
+                                                    .background(MaterialTheme.colorScheme.surface)
+                                                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
                                             }
-                                        }
-                                    }
-                                    // Filler for incomplete rows
-                                    repeat(5 - rowEps.size) {
-                                        Spacer(modifier = Modifier.weight(1f))
+                                        )
+                                        .clickable(enabled = loadingEpisodeString == null) { playEpisode(epStr) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isCurrentLoading) {
+                                        CircularProgressIndicator(
+                                            color = Color.White,
+                                            strokeWidth = 2.dp,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    } else {
+                                        Text(
+                                            text = epStr,
+                                            color = if (isLastWatched) AkiraPrimary else MaterialTheme.colorScheme.onSurface,
+                                            fontWeight = if (isLastWatched) FontWeight.ExtraBold else FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
                                     }
                                 }
+                            }
+                            // Filler for incomplete rows
+                            repeat(5 - rowEps.size) {
+                                Spacer(modifier = Modifier.weight(1f))
                             }
                         }
                     }

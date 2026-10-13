@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,14 +89,21 @@ fun FeaturedAnimeBanner(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { onTap(show) }
             ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
+                val bannerRequest = remember(artwork) {
+                    ImageRequest.Builder(context)
                         .data(artwork)
+                        .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                        .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                        .networkCachePolicy(coil.request.CachePolicy.ENABLED)
                         .apply {
                             ImageUtils.imageHeaders.forEach { (k, v) -> addHeader(k, v) }
                         }
                         .crossfade(true)
-                        .build(),
+                        .build()
+                }
+
+                AsyncImage(
+                    model = bannerRequest,
                     contentDescription = title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

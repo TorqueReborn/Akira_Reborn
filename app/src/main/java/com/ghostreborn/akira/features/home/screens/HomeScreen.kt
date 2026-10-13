@@ -124,6 +124,9 @@ fun HomeScreen(
     )
 
     fun fetchShows(page: Int, reset: Boolean = false) {
+        if (page > 1 && (isLoading || isLoadingMore || !hasMore)) return
+        if (page == 1 && isLoading && !reset) return
+
         if (page == 1) {
             isLoading = true
             errorMessage = null

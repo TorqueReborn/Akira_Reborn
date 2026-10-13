@@ -173,7 +173,7 @@ object AnimeRepository {
         val encodedExts = Uri.encode(extensionsObj.toString())
         val fullUrl = "$BASE_URL?variables=$encodedVars&extensions=$encodedExts"
 
-        if (page == 1 && q.isNullOrEmpty()) {
+        if (q.isNullOrEmpty()) {
             pageCache[fullUrl]?.let { return@withContext it }
         }
 
@@ -185,7 +185,7 @@ object AnimeRepository {
             if (!resp.isSuccessful) throw IllegalStateException("Server error: HTTP ${resp.code}")
 
             val result = parseAnimeResponse(body, page)
-            if (page == 1 && q.isNullOrEmpty()) {
+            if (q.isNullOrEmpty()) {
                 pageCache[fullUrl] = result
             }
             result
