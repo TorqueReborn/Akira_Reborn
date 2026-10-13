@@ -1,8 +1,13 @@
 package com.ghostreborn.akira.features.settings.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,10 +51,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,10 +66,8 @@ import coil.compose.AsyncImage
 import com.ghostreborn.akira.features.auth.services.AuthRepository
 import com.ghostreborn.akira.features.auth.services.TokenManager
 import com.ghostreborn.akira.features.home.services.AnimeRepository
+import com.ghostreborn.akira.ui.components.AkiraLogoGradientBrush
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
-import com.ghostreborn.akira.ui.theme.AkiraSurfaceBorder
-import com.ghostreborn.akira.ui.theme.AkiraTextPrimary
-import com.ghostreborn.akira.ui.theme.AkiraTextSecondary
 import kotlinx.coroutines.launch
 
 @Composable
@@ -92,79 +99,100 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
             // Top App Bar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 20.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 20.dp)
             ) {
                 IconButton(
                     onClick = onNavigateBack,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surface)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.ArrowBack,
                         contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
                 Text(
-                    text = "Settings",
-                    style = MaterialTheme.typography.titleLarge.copy(
+                    text = "SETTINGS",
+                    style = TextStyle(
+                        brush = AkiraLogoGradientBrush,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        letterSpacing = 2.sp
                     )
                 )
             }
 
-            // User Profile Card
+            // User Profile Hero Card (Flat, no elevation)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(elevation = 6.dp, shape = RoundedCornerShape(22.dp))
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(RoundedCornerShape(24.dp))
                     .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(22.dp))
-                    .padding(18.dp)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
+                    .padding(20.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (!picture.isNullOrBlank()) {
-                        AsyncImage(
-                            model = picture,
-                            contentDescription = username,
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(CircleShape)
-                                .border(2.dp, AkiraPrimary, CircleShape)
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Person,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(32.dp)
+                    // Profile Avatar with Neon Akira Gradient Ring
+                    Box(
+                        modifier = Modifier
+                            .size(62.dp)
+                            .clip(CircleShape)
+                            .background(AkiraLogoGradientBrush)
+                            .padding(2.5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!picture.isNullOrBlank()) {
+                            AsyncImage(
+                                model = picture,
+                                contentDescription = username,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
                             )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surface),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Person,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .graphicsLayer(alpha = 0.99f)
+                                        .drawWithCache {
+                                            onDrawWithContent {
+                                                drawContent()
+                                                drawRect(AkiraLogoGradientBrush, blendMode = BlendMode.SrcIn)
+                                            }
+                                        }
+                                )
+                            }
                         }
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = username,
                             fontSize = 18.sp,
@@ -172,7 +200,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         if (!email.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = email,
@@ -180,7 +208,7 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 if (isVerified) {
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Icon(
                                         imageVector = Icons.Rounded.CheckCircle,
                                         contentDescription = "Verified",
@@ -198,28 +226,29 @@ fun SettingsScreen(
 
             // Content Filters Header
             Text(
-                text = "CONTENT FILTERS",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
+                text = "CONTENT PREFERENCES",
+                style = TextStyle(
+                    brush = AkiraLogoGradientBrush,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.5.sp
+                ),
+                modifier = Modifier.padding(start = 6.dp, bottom = 10.dp)
             )
 
-            // Content Filters Box
+            // Content Filters Card (Flat, no elevation)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(elevation = 6.dp, shape = RoundedCornerShape(20.dp))
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(22.dp))
                     .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(22.dp))
             ) {
                 Column {
                     FilterSwitchTile(
                         icon = Icons.Rounded.Explicit,
                         title = "Allow Adult Content (18+)",
-                        subtitle = "Include adult rated anime in catalog",
+                        subtitle = "Include mature and adult catalog entries",
                         checked = allowAdult,
                         onCheckedChange = {
                             allowAdult = it
@@ -227,12 +256,16 @@ fun SettingsScreen(
                         }
                     )
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), thickness = 1.dp)
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        thickness = 0.8.dp,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
 
                     FilterSwitchTile(
                         icon = Icons.Rounded.FilterAlt,
                         title = "Filter Out Ecchi Content",
-                        subtitle = "Hide Ecchi titles from catalog & searches",
+                        subtitle = "Hide Ecchi titles from home and searches",
                         checked = denyEcchi,
                         onCheckedChange = {
                             denyEcchi = it
@@ -240,12 +273,16 @@ fun SettingsScreen(
                         }
                     )
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), thickness = 1.dp)
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        thickness = 0.8.dp,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
 
                     FilterSwitchTile(
                         icon = Icons.Rounded.HelpOutline,
                         title = "Allow Unrated Content",
-                        subtitle = "Include unrated or unknown age rating anime",
+                        subtitle = "Include anime without age certification",
                         checked = allowUnknown,
                         onCheckedChange = {
                             allowUnknown = it
@@ -255,16 +292,18 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // App Updates & Version Section
             Text(
-                text = "ABOUT & UPDATES",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 1.sp,
-                modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
+                text = "APPLICATION & UPDATES",
+                style = TextStyle(
+                    brush = AkiraLogoGradientBrush,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.5.sp
+                ),
+                modifier = Modifier.padding(start = 6.dp, bottom = 10.dp)
             )
 
             val updateManager = remember { com.ghostreborn.akira.features.updater.services.UpdateManager.getInstance(context) }
@@ -277,34 +316,36 @@ fun SettingsScreen(
                 }
             }
 
+            // Updates Card (Flat, no elevation)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(22.dp))
                     .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(22.dp))
+                    .padding(18.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
+                        Icon(
+                            imageVector = Icons.Rounded.SystemUpdate,
+                            contentDescription = null,
+                            tint = Color.White,
                             modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.SystemUpdate,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+                                .size(28.dp)
+                                .graphicsLayer(alpha = 0.99f)
+                                .drawWithCache {
+                                    onDrawWithContent {
+                                        drawContent()
+                                        drawRect(AkiraLogoGradientBrush, blendMode = BlendMode.SrcIn)
+                                    }
+                                }
+                        )
 
-                        Spacer(modifier = Modifier.width(14.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -317,9 +358,9 @@ fun SettingsScreen(
                             Text(
                                 text = when (updateState) {
                                     is com.ghostreborn.akira.features.updater.models.UpdateUiState.Checking -> "Checking GitHub for updates..."
-                                    is com.ghostreborn.akira.features.updater.models.UpdateUiState.UpToDate -> "You are on the latest version"
-                                    is com.ghostreborn.akira.features.updater.models.UpdateUiState.Available -> "New version available: ${(updateState as com.ghostreborn.akira.features.updater.models.UpdateUiState.Available).targetVersionName}"
-                                    else -> "Check for the latest GitHub release"
+                                    is com.ghostreborn.akira.features.updater.models.UpdateUiState.UpToDate -> "You are on the latest release"
+                                    is com.ghostreborn.akira.features.updater.models.UpdateUiState.Available -> "Update available: ${(updateState as com.ghostreborn.akira.features.updater.models.UpdateUiState.Available).targetVersionName}"
+                                    else -> "Tap to verify latest version"
                                 },
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -333,28 +374,32 @@ fun SettingsScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                         } else {
-                            androidx.compose.material3.TextButton(
-                                onClick = { updateManager.checkForUpdates(isManual = true) }
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(AkiraLogoGradientBrush)
+                                    .clickable { updateManager.checkForUpdates(isManual = true) }
+                                    .padding(horizontal = 14.dp, vertical = 7.dp)
                             ) {
                                 Text(
                                     text = "Check",
                                     fontWeight = FontWeight.Bold,
-                                    color = AkiraPrimary,
-                                    fontSize = 14.sp
+                                    color = Color.White,
+                                    fontSize = 13.sp
                                 )
                             }
                         }
                     }
 
                     if (updateState is com.ghostreborn.akira.features.updater.models.UpdateUiState.UpToDate) {
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(10.dp))
                                 .background(Color(0xFF143821))
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.CheckCircle,
@@ -362,12 +407,12 @@ fun SettingsScreen(
                                 tint = Color(0xFF16A34A),
                                 modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Akira is up to date",
                                 fontSize = 12.sp,
                                 color = Color(0xFF4ADE80),
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
@@ -376,13 +421,12 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Logout Action Button
+            // Logout Action Button (Flat, no elevation, gradientized with AkiraLogoGradientBrush)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF3F1D1D))
-                    .border(1.dp, Color(0xFF7F1D1D), RoundedCornerShape(16.dp))
+                    .clip(CircleShape)
+                    .background(AkiraLogoGradientBrush)
                     .clickable(enabled = !isLoggingOut) {
                         isLoggingOut = true
                         scope.launch {
@@ -392,13 +436,13 @@ fun SettingsScreen(
                             onLogoutSuccess()
                         }
                     }
-                    .padding(vertical = 16.dp),
+                    .padding(vertical = 15.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (isLoggingOut) {
                     CircularProgressIndicator(
-                        strokeWidth = 2.dp,
-                        color = Color(0xFFEF4444),
+                        strokeWidth = 2.5.dp,
+                        color = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                 } else {
@@ -406,19 +450,21 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.Rounded.Logout,
                             contentDescription = "Log Out",
-                            tint = Color(0xFFEF4444),
-                            modifier = Modifier.size(20.dp)
+                            tint = Color.White,
+                            modifier = Modifier.size(19.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Log Out",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFEF4444)
+                            color = Color.White
                         )
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -434,25 +480,26 @@ fun FilterSwitchTile(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White,
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+                .size(28.dp)
+                .graphicsLayer(alpha = 0.99f)
+                .drawWithCache {
+                    onDrawWithContent {
+                        drawContent()
+                        drawRect(AkiraLogoGradientBrush, blendMode = BlendMode.SrcIn)
+                    }
+                }
+        )
 
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.width(16.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -469,13 +516,42 @@ fun FilterSwitchTile(
             )
         }
 
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = AkiraPrimary
-            )
+        // Custom Akira Pill Switch:
+        // Inactive: Surface/glass background with Akira gradient inner circle thumb
+        // Active: Akira gradient background with white inner circle thumb
+        val animatedThumbBias by animateFloatAsState(
+            targetValue = if (checked) 1f else -1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMedium
+            ),
+            label = "switch_thumb_bias"
         )
+
+        Box(
+            modifier = Modifier
+                .width(48.dp)
+                .height(28.dp)
+                .clip(CircleShape)
+                .then(
+                    if (checked) Modifier.background(AkiraLogoGradientBrush)
+                    else Modifier
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape)
+                )
+                .clickable { onCheckedChange(!checked) }
+                .padding(3.dp),
+            contentAlignment = androidx.compose.ui.BiasAlignment(animatedThumbBias, 0f)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .then(
+                        if (checked) Modifier.background(Color.White)
+                        else Modifier.background(AkiraLogoGradientBrush)
+                    )
+            )
+        }
     }
 }

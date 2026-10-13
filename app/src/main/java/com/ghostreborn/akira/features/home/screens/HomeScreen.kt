@@ -5,12 +5,15 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -54,10 +57,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -187,6 +193,25 @@ fun HomeScreen(
         }
     }
 
+    val searchFocusRequester = remember { FocusRequester() }
+
+    // Close search mode and reset query when back button is pressed
+    BackHandler(enabled = isSearchActive) {
+        isSearchActive = false
+        searchQuery = ""
+        fetchShows(1, reset = true)
+    }
+
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) {
+            // Automatically request focus and open keyboard
+            delay(100L)
+            try {
+                searchFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -210,10 +235,14 @@ fun HomeScreen(
                 span = { GridItemSpan(2) }
             ) {
                 if (isSearchActive) {
+                    val searchInteractionSource = remember { MutableInteractionSource() }
+                    val isSearchFocused by searchInteractionSource.collectIsFocusedAsState()
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp),
+                            .height(IntrinsicSize.Min)
+                            .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedTextField(
@@ -226,26 +255,63 @@ fun HomeScreen(
                                     fetchShows(1, reset = true)
                                 }
                             },
-                            placeholder = { Text("Search anime, characters, studios...") },
+                            placeholder = {
+                                Text(
+                                    "Search anime, characters, studios...",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.Search,
+                                    contentDescription = null,
+                                    tint = if (isSearchFocused) AkiraPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
                             singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(16.dp),
+                            interactionSource = searchInteractionSource,
+                            shape = CircleShape,
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(searchFocusRequester)
+                                .shadow(if (isSearchFocused) 6.dp else 2.dp, CircleShape, spotColor = AkiraPrimary)
+                                .then(
+                                    if (isSearchFocused) Modifier.border(1.8.dp, AkiraLogoGradientBrush, CircleShape)
+                                    else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape)
+                                ),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AkiraPrimary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent,
+                                cursorColor = AkiraPrimary
                             )
                         )
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
 
-                        IconButton(
-                            onClick = {
-                                isSearchActive = false
-                                searchQuery = ""
-                                fetchShows(1, reset = true)
-                            }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .aspectRatio(1f)
+                                .shadow(if (isSearchFocused) 4.dp else 2.dp, CircleShape, spotColor = AkiraPrimary)
+                                .clip(CircleShape)
+                                .background(AkiraLogoGradientBrush)
+                                .clickable {
+                                    isSearchActive = false
+                                    searchQuery = ""
+                                    fetchShows(1, reset = true)
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(imageVector = Icons.Rounded.Close, contentDescription = "Close Search")
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "Close Search",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
                     }
                 } else {

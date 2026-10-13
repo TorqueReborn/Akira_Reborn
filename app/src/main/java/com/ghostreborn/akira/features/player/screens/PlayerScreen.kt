@@ -44,6 +44,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.AspectRatio
 import androidx.compose.material.icons.rounded.BrightnessMedium
 import androidx.compose.material.icons.rounded.Dns
@@ -131,9 +132,12 @@ fun PlayerScreen(
     val scope = rememberCoroutineScope()
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
-    val playableSources = remember(sources) {
-        val direct = sources.filter { it.isDirect }
-        if (direct.isNotEmpty()) direct else sources
+    var currentEpisodeNumber by remember(episodeNumber) { mutableStateOf(episodeNumber) }
+    var currentSources by remember(sources) { mutableStateOf(sources) }
+
+    val playableSources = remember(currentSources) {
+        val direct = currentSources.filter { it.isDirect }
+        if (direct.isNotEmpty()) direct else currentSources
     }
 
     var currentSourceIndex by remember { mutableIntStateOf(0) }
@@ -179,7 +183,6 @@ fun PlayerScreen(
 
     // Immersive landscape orientation lock
     DisposableEffect(Unit) {
-        val originalOrientation = activity?.requestedOrientation
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
 
         val window = activity?.window
@@ -190,7 +193,8 @@ fun PlayerScreen(
         }
 
         onDispose {
-            activity?.requestedOrientation = originalOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            // Restore portrait orientation and window insets on exit
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             if (window != null) {
                 val controller = WindowCompat.getInsetsController(window, window.decorView)
                 controller.show(WindowInsetsCompat.Type.systemBars())
@@ -245,7 +249,7 @@ fun PlayerScreen(
     }
 
     fun switchEpisode(targetEp: String) {
-        if (isChangingEpisode || targetEp == episodeNumber) return
+        if (isChangingEpisode || targetEp == currentEpisodeNumber) return
         isChangingEpisode = true
         scope.launch {
             try {
@@ -257,7 +261,20 @@ fun PlayerScreen(
                     translationType = translationType,
                     authToken = token
                 )
-                onChangeEpisode?.invoke(targetEp, result.streams)
+                currentEpisodeNumber = targetEp
+                currentSources = result.streams
+                currentPositionMs = 0L
+                totalDurationMs = 0L
+                currentSourceIndex = 0
+                val direct = result.streams.filter { it.isDirect }
+                val targetStreams = if (direct.isNotEmpty()) direct else result.streams
+                if (targetStreams.isNotEmpty()) {
+                    val mediaItem = MediaItem.fromUri(Uri.parse(targetStreams[0].url))
+                    exoPlayer.setMediaItem(mediaItem)
+                    exoPlayer.playbackParameters = PlaybackParameters(currentSpeed)
+                    exoPlayer.prepare()
+                    exoPlayer.playWhenReady = true
+                }
             } catch (e: Exception) {
                 Toast.makeText(context, "Could not load episode $targetEp: ${e.message}", Toast.LENGTH_SHORT).show()
             } finally {
@@ -266,7 +283,7 @@ fun PlayerScreen(
         }
     }
 
-    val currentEpIdx = episodes.indexOf(episodeNumber)
+    val currentEpIdx = episodes.indexOf(currentEpisodeNumber)
     val hasNextEpisode = currentEpIdx != -1 && currentEpIdx + 1 < episodes.size
     val nextEpisodeNumber = if (hasNextEpisode) episodes[currentEpIdx + 1] else null
     val hasPrevEpisode = currentEpIdx > 0
@@ -692,7 +709,7 @@ fun PlayerScreen(
                             maxLines = 1
                         )
                         Text(
-                            text = "Episode $episodeNumber • ${translationType.uppercase()}",
+                            text = "Episode $currentEpisodeNumber • ${translationType.uppercase()}",
                             color = Color(0xFFCBD5E1),
                             fontSize = 12.sp
                         )
@@ -759,95 +776,114 @@ fun PlayerScreen(
                 }
             }
 
-            // Center Play / Pause & Prev / Next
-            Row(
-                modifier = Modifier.align(Alignment.Center),
-                verticalAlignment = Alignment.CenterVertically
+            // Center Play / Pause & Seek Controls (Guaranteed mathematically centered)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                // Prev Ep
-                if (hasPrevEpisode && prevEpisodeNumber != null) {
+                // Primary Center Controls Row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    // Prev Ep (Takes slot or invisible spacer if only next ep exists, to preserve center symmetry)
+                    if (hasPrevEpisode && prevEpisodeNumber != null) {
+                        IconButton(
+                            onClick = { switchEpisode(prevEpisodeNumber) },
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ArrowBack,
+                                contentDescription = "Prev Episode",
+                                tint = Color.White,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    } else if (hasNextEpisode && nextEpisodeNumber != null) {
+                        // Symmetric spacer to keep Play/Pause dead-center
+                        Spacer(modifier = Modifier.size(44.dp))
+                    }
+
+                    Spacer(modifier = Modifier.width(18.dp))
+
+                    // Rewind 10s
                     IconButton(
-                        onClick = { switchEpisode(prevEpisodeNumber) },
-                        modifier = Modifier.size(44.dp)
+                        onClick = {
+                            val pos = (exoPlayer.currentPosition - 10000).coerceAtLeast(0L)
+                            exoPlayer.seekTo(pos)
+                            currentPositionMs = pos
+                        },
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.ArrowBack,
-                            contentDescription = "Prev Episode",
+                            imageVector = Icons.Rounded.Replay10,
+                            contentDescription = "Rewind 10s",
                             tint = Color.White,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(34.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(20.dp))
-                }
 
-                IconButton(
-                    onClick = {
-                        val pos = (exoPlayer.currentPosition - 10000).coerceAtLeast(0L)
-                        exoPlayer.seekTo(pos)
-                        currentPositionMs = pos
-                    },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Replay10,
-                        contentDescription = "Rewind 10s",
-                        tint = Color.White,
-                        modifier = Modifier.size(34.dp)
-                    )
-                }
+                    Spacer(modifier = Modifier.width(28.dp))
 
-                Spacer(modifier = Modifier.width(24.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .shadow(12.dp, CircleShape, spotColor = AkiraPrimary)
-                        .clip(CircleShape)
-                        .background(AkiraLogoGradientBrush)
-                        .clickable {
-                            if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(24.dp))
-
-                IconButton(
-                    onClick = {
-                        val pos = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
-                        exoPlayer.seekTo(pos)
-                        currentPositionMs = pos
-                    },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Forward10,
-                        contentDescription = "Fast Forward 10s",
-                        tint = Color.White,
-                        modifier = Modifier.size(34.dp)
-                    )
-                }
-
-                // Next Ep
-                if (hasNextEpisode && nextEpisodeNumber != null) {
-                    Spacer(modifier = Modifier.width(20.dp))
-                    IconButton(
-                        onClick = { switchEpisode(nextEpisodeNumber) },
-                        modifier = Modifier.size(44.dp)
+                    // Exactly Centered Play / Pause Button
+                    Box(
+                        modifier = Modifier
+                            .size(62.dp)
+                            .shadow(12.dp, CircleShape, spotColor = AkiraPrimary)
+                            .clip(CircleShape)
+                            .background(AkiraLogoGradientBrush)
+                            .clickable {
+                                if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.SkipNext,
-                            contentDescription = "Next Episode",
+                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
                         )
+                    }
+
+                    Spacer(modifier = Modifier.width(28.dp))
+
+                    // Fast Forward 10s
+                    IconButton(
+                        onClick = {
+                            val pos = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
+                            exoPlayer.seekTo(pos)
+                            currentPositionMs = pos
+                        },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Forward10,
+                            contentDescription = "Fast Forward 10s",
+                            tint = Color.White,
+                            modifier = Modifier.size(34.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(18.dp))
+
+                    // Next Ep (Takes slot or invisible spacer if only prev ep exists, to preserve center symmetry)
+                    if (hasNextEpisode && nextEpisodeNumber != null) {
+                        IconButton(
+                            onClick = { switchEpisode(nextEpisodeNumber) },
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ArrowForward,
+                                contentDescription = "Next Episode",
+                                tint = Color.White,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    } else if (hasPrevEpisode && prevEpisodeNumber != null) {
+                        // Symmetric spacer to keep Play/Pause dead-center
+                        Spacer(modifier = Modifier.size(44.dp))
                     }
                 }
             }
@@ -1135,7 +1171,7 @@ fun PlayerScreen(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(episodes) { ep ->
-                                val isSelected = ep == episodeNumber
+                                val isSelected = ep == currentEpisodeNumber
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
