@@ -70,10 +70,14 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.ghostreborn.akira.features.home.models.AnimeShow
 import com.ghostreborn.akira.features.home.services.AnimeRepository
+import com.ghostreborn.akira.features.home.services.FavoriteAnime
+import com.ghostreborn.akira.features.home.services.FavoritesManager
 import com.ghostreborn.akira.features.home.widgets.AnimeCard
 import com.ghostreborn.akira.features.home.widgets.FeaturedAnimeBanner
+import com.ghostreborn.akira.features.home.widgets.FavoritesRowSection
 import com.ghostreborn.akira.ui.components.AkiraLogoGradientBrush
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
 import kotlinx.coroutines.Job
@@ -105,6 +109,7 @@ fun HomeScreen(
 
     val shows = remember { mutableStateListOf<AnimeShow>() }
     val featuredShows = remember { mutableStateListOf<AnimeShow>() }
+    val favoriteShows = remember { mutableStateListOf<FavoriteAnime>() }
     var isLoading by remember { mutableStateOf(true) }
     var isLoadingMore by remember { mutableStateOf(false) }
     var currentPage by remember { mutableIntStateOf(1) }
@@ -165,6 +170,14 @@ fun HomeScreen(
                 isLoadingMore = false
             }
         }
+    }
+
+    // Reload favorites when returning to the HomeScreen
+    LifecycleResumeEffect(Unit) {
+        val currentFavorites = FavoritesManager.getFavorites(context)
+        favoriteShows.clear()
+        favoriteShows.addAll(currentFavorites)
+        onPauseOrDispose { }
     }
 
     LaunchedEffect(Unit) {
@@ -488,6 +501,21 @@ fun HomeScreen(
                         featuredShows = featuredShows,
                         onTap = onNavigateToDetail,
                         modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+            }
+
+            // Favorited Anime Row (Shown before latest updates/shows when not in search)
+            if (favoriteShows.isNotEmpty() && !isSearchActive) {
+                item(
+                    key = "favorites_section",
+                    contentType = "favorites",
+                    span = { GridItemSpan(2) }
+                ) {
+                    FavoritesRowSection(
+                        favorites = favoriteShows,
+                        onTap = onNavigateToDetail,
+                        modifier = Modifier.padding(bottom = 6.dp)
                     )
                 }
             }
