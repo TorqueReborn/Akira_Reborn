@@ -13,13 +13,13 @@
 ## Project Structure
 ```
 app/src/main/java/com/ghostreborn/akira/
-├── core/                  # Low-level config, endpoints, crypto
+├── core/                  # Low-level config, endpoints, crypto, DI, backup
 ├── features/
-│   ├── auth/              # Authentication repository, tokens, cloudflare verification
+│   ├── auth/              # Authentication repository, tokens, verification & screens
 │   ├── home/              # Home feeds, anime list, details, favorites
 │   ├── player/            # ExoPlayer video player, stream decryptor, parser
 │   ├── settings/          # Application preferences & settings screen
-│   └── updater/           # In-app APK updates, downloader & installer
+│   └── updater/           # In-app APK updates, downloader, installer & widgets
 ├── ui/                    # Shared Compose components, theme, color palettes
 └── utils/                 # Utility extensions
 ```

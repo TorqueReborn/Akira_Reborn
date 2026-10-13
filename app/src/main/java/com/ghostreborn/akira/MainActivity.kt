@@ -19,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.ghostreborn.akira.features.auth.screens.LoginScreen
 import com.ghostreborn.akira.features.auth.services.TokenManager
 import com.ghostreborn.akira.features.home.screens.AnimeDetailScreen
 import com.ghostreborn.akira.features.home.screens.HomeScreen
@@ -26,7 +27,7 @@ import com.ghostreborn.akira.features.player.models.StreamSource
 import com.ghostreborn.akira.features.player.screens.PlayerScreen
 import com.ghostreborn.akira.features.settings.screens.SettingsScreen
 import com.ghostreborn.akira.features.updater.services.UpdateManager
-import com.ghostreborn.akira.features.updater.ui.UpdateDialog
+import com.ghostreborn.akira.features.updater.widgets.UpdateDialog
 import com.ghostreborn.akira.ui.theme.AkiraTheme
 
 @Deprecated("Transient state holder for legacy navigation. Migration to ViewModel state in progress.")

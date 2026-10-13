@@ -1,4 +1,4 @@
-package com.ghostreborn.akira.features.updater.ui
+package com.ghostreborn.akira.features.updater.widgets
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
