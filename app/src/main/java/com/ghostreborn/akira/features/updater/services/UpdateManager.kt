@@ -37,6 +37,12 @@ class UpdateManager(
 
     private var currentCachedRelease: AppRelease? = null
 
+    val currentVersionCode: Long
+        get() = verifier.getInstalledVersionCode()
+
+    val currentVersionName: String
+        get() = verifier.getInstalledVersionName()
+
     init {
         // Load cached release from preferences if exists
         preferences.lastCachedReleaseJson?.let {
