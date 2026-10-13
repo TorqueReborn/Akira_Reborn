@@ -434,7 +434,7 @@ fun AnimeDetailScreen(
                                             )
                                             Spacer(modifier = Modifier.width(3.dp))
                                             Text(
-                                                text = String.format("%.1f", d.score),
+                                                text = String.format(java.util.Locale.US, "%.1f", d.score),
                                                 color = Color(0xFFFDE68A),
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold

@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MovieCreation
 import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,7 +33,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ghostreborn.akira.features.home.models.AnimeShow
-import com.ghostreborn.akira.ui.theme.AkiraPrimary
 import com.ghostreborn.akira.ui.theme.AkiraShadowColor
 import com.ghostreborn.akira.utils.ImageUtils
 
@@ -133,7 +130,7 @@ fun AnimeCard(
                             modifier = Modifier.size(12.dp)
                         )
                         Text(
-                            text = String.format("%.1f", anime.score),
+                            text = String.format(java.util.Locale.US, "%.1f", anime.score),
                             color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,

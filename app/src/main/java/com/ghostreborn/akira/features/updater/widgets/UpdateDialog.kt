@@ -50,7 +50,6 @@ import com.ghostreborn.akira.ui.theme.AkiraAccentBackground
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
 import com.ghostreborn.akira.ui.theme.AkiraSurface
 import com.ghostreborn.akira.ui.theme.AkiraSurfaceBorder
-import com.ghostreborn.akira.ui.theme.AkiraTextHint
 import com.ghostreborn.akira.ui.theme.AkiraTextPrimary
 import com.ghostreborn.akira.ui.theme.AkiraTextSecondary
 import java.io.File
@@ -206,7 +205,7 @@ private fun AvailableUpdateDialog(
 
                 // File size info
                 val apkSizeMb = if (state.release.apkAsset.size > 0) {
-                    String.format("%.1f MB", state.release.apkAsset.size / (1024.0 * 1024.0))
+                    String.format(java.util.Locale.US, "%.1f MB", state.release.apkAsset.size / (1024.0 * 1024.0))
                 } else null
 
                 if (apkSizeMb != null) {
@@ -339,9 +338,9 @@ private fun DownloadingDialog(
                 val downloadedMb = state.bytesDownloaded / (1024.0 * 1024.0)
                 val totalMb = state.totalBytes / (1024.0 * 1024.0)
                 val progressText = if (state.totalBytes > 0) {
-                    String.format("%.1f MB / %.1f MB", downloadedMb, totalMb)
+                    String.format(java.util.Locale.US, "%.1f MB / %.1f MB", downloadedMb, totalMb)
                 } else {
-                    String.format("%.1f MB downloaded", downloadedMb)
+                    String.format(java.util.Locale.US, "%.1f MB downloaded", downloadedMb)
                 }
 
                 Text(

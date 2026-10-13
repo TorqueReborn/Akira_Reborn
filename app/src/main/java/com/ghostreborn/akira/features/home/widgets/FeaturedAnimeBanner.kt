@@ -43,6 +43,7 @@ import com.ghostreborn.akira.features.home.models.AnimeShow
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
 import com.ghostreborn.akira.utils.ImageUtils
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun FeaturedAnimeBanner(
@@ -58,7 +59,7 @@ fun FeaturedAnimeBanner(
     // Auto-slide timer every 5 seconds
     LaunchedEffect(pagerState) {
         while (true) {
-            delay(5000L)
+            delay(5000L.milliseconds)
             if (featuredShows.size > 1) {
                 val next = (pagerState.currentPage + 1) % featuredShows.size
                 pagerState.animateScrollToPage(next)
@@ -163,7 +164,7 @@ fun FeaturedAnimeBanner(
                                         modifier = Modifier.size(12.dp)
                                     )
                                     Text(
-                                        text = String.format("%.1f", show.score),
+                                        text = String.format(java.util.Locale.US, "%.1f", show.score),
                                         color = Color(0xFF92400E),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.ExtraBold,
