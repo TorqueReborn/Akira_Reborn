@@ -15,16 +15,135 @@ data class AnimeCharacter(
         fun fromJson(json: JSONObject): AnimeCharacter {
             val role = json.optString("role").takeIf { it.isNotBlank() }
             val charObj = json.optJSONObject("character")
-            val name = charObj?.optString("name") ?: json.optString("name", "Character")
-            val image = ImageUtils.resolveUrl(charObj?.optString("image") ?: json.optString("image"))
 
-            val actorsArr = json.optJSONArray("actors")
+            fun extractName(targetObj: JSONObject?, fallbackStr: String?): String {
+                if (targetObj == null) {
+                    if (fallbackStr.isNullOrBlank()) return "Character"
+                    if (fallbackStr.startsWith("{")) {
+                        try {
+                            val parsed = JSONObject(fallbackStr)
+                            val f = parsed.optString("full").takeIf { it.isNotBlank() }
+                                ?: parsed.optString("userPreferred").takeIf { it.isNotBlank() }
+                            if (f != null) return f
+                        } catch (_: Exception) {}
+                    }
+                    return fallbackStr
+                }
+
+                // Check if targetObj has a nested "name" object
+                val nameObj = targetObj.optJSONObject("name")
+                if (nameObj != null) {
+                    val full = nameObj.optString("full").takeIf { it.isNotBlank() }
+                    val userPreferred = nameObj.optString("userPreferred").takeIf { it.isNotBlank() }
+                    val first = nameObj.optString("first").takeIf { it.isNotBlank() }
+                    val last = nameObj.optString("last").takeIf { it.isNotBlank() }
+                    val combined = if (first != null && last != null) "$first $last" else first ?: last
+                    if (full != null) return full
+                    if (userPreferred != null) return userPreferred
+                    if (combined != null) return combined
+                }
+
+                // Or targetObj itself has "full" / "userPreferred"
+                val directFull = targetObj.optString("full").takeIf { it.isNotBlank() }
+                    ?: targetObj.optString("userPreferred").takeIf { it.isNotBlank() }
+                if (directFull != null) return directFull
+
+                val rawName = targetObj.optString("name").takeIf { it.isNotBlank() }
+                if (rawName != null) {
+                    if (rawName.startsWith("{")) {
+                        try {
+                            val parsed = JSONObject(rawName)
+                            val f = parsed.optString("full").takeIf { it.isNotBlank() }
+                                ?: parsed.optString("userPreferred").takeIf { it.isNotBlank() }
+                            if (f != null) return f
+                        } catch (_: Exception) {}
+                    }
+                    return rawName
+                }
+                return fallbackStr ?: "Character"
+            }
+
+            fun extractImage(targetObj: JSONObject?, fallbackStr: String?): String? {
+                if (targetObj == null) {
+                    if (fallbackStr.isNullOrBlank()) return null
+                    if (fallbackStr.startsWith("{")) {
+                        try {
+                            val parsed = JSONObject(fallbackStr)
+                            val l = parsed.optString("large").takeIf { it.isNotBlank() }
+                                ?: parsed.optString("medium").takeIf { it.isNotBlank() }
+                                ?: parsed.optString("default").takeIf { it.isNotBlank() }
+                            if (l != null) return ImageUtils.resolveUrl(l)
+                        } catch (_: Exception) {}
+                    }
+                    return ImageUtils.resolveUrl(fallbackStr)
+                }
+
+                // Check if targetObj has a nested "image" object
+                val imgObj = targetObj.optJSONObject("image")
+                if (imgObj != null) {
+                    val large = imgObj.optString("large").takeIf { it.isNotBlank() }
+                    val medium = imgObj.optString("medium").takeIf { it.isNotBlank() }
+                    val defaultImg = imgObj.optString("default").takeIf { it.isNotBlank() }
+                    val resolved = large ?: medium ?: defaultImg
+                    if (resolved != null) return ImageUtils.resolveUrl(resolved)
+                }
+
+                // Or targetObj itself has "large" / "medium"
+                val directLarge = targetObj.optString("large").takeIf { it.isNotBlank() }
+                    ?: targetObj.optString("medium").takeIf { it.isNotBlank() }
+                    ?: targetObj.optString("default").takeIf { it.isNotBlank() }
+                if (directLarge != null) return ImageUtils.resolveUrl(directLarge)
+
+                val direct = targetObj.optString("image").takeIf { it.isNotBlank() }
+                if (direct != null && direct.startsWith("{")) {
+                    try {
+                        val parsed = JSONObject(direct)
+                        val l = parsed.optString("large").takeIf { it.isNotBlank() }
+                            ?: parsed.optString("medium").takeIf { it.isNotBlank() }
+                            ?: parsed.optString("default").takeIf { it.isNotBlank() }
+                        if (l != null) return ImageUtils.resolveUrl(l)
+                    } catch (_: Exception) {}
+                }
+                return ImageUtils.resolveUrl(direct ?: fallbackStr)
+            }
+
+            // Extract character name and image:
+            // 1) First check charObj ("character" object)
+            // 2) If not present, check json directly ("name" object or string, "image" object or string)
+            val name = if (charObj != null) {
+                extractName(charObj, null)
+            } else if (json.optJSONObject("name") != null) {
+                extractName(json.optJSONObject("name"), null)
+            } else {
+                extractName(null, json.optString("name"))
+            }
+
+            val image = if (charObj != null) {
+                extractImage(charObj, null)
+            } else if (json.optJSONObject("image") != null) {
+                extractImage(json.optJSONObject("image"), null)
+            } else {
+                extractImage(null, json.optString("image"))
+            }
+
+            val actorsArr = json.optJSONArray("actors") ?: json.optJSONArray("voiceActors")
             var actorName: String? = null
             var actorImage: String? = null
             if (actorsArr != null && actorsArr.length() > 0) {
                 val firstActor = actorsArr.optJSONObject(0)
-                actorName = firstActor?.optString("name")?.takeIf { it.isNotBlank() }
-                actorImage = ImageUtils.resolveUrl(firstActor?.optString("image"))
+                if (firstActor != null) {
+                    val actorObj = firstActor.optJSONObject("voiceActor") ?: firstActor.optJSONObject("actor") ?: firstActor
+                    actorName = if (actorObj.optJSONObject("name") != null) {
+                        extractName(actorObj.optJSONObject("name"), null)
+                    } else {
+                        extractName(actorObj, actorObj.optString("name"))
+                    }
+                    actorImage = if (actorObj.optJSONObject("image") != null) {
+                        extractImage(actorObj.optJSONObject("image"), null)
+                    } else {
+                        extractImage(actorObj, actorObj.optString("image"))
+                    }
+                }
             }
 
             return AnimeCharacter(

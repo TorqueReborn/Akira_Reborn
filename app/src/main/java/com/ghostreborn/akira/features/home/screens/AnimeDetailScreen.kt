@@ -30,14 +30,27 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,6 +69,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -99,7 +113,16 @@ fun AnimeDetailScreen(
     var lastProgressMs by remember { mutableStateOf(0L) }
     var lastWatchedEp by remember { mutableStateOf<String?>(null) }
 
+    var isFavorite by remember { mutableStateOf(false) }
+    var isAscending by remember { mutableStateOf(true) }
+    var isSynopsisExpanded by remember { mutableStateOf(false) }
+    var isSearchEpisodeOpen by remember { mutableStateOf(false) }
+    var episodeSearchQuery by remember { mutableStateOf("") }
+
     LaunchedEffect(animeId) {
+        // Load favorite status
+        isFavorite = com.ghostreborn.akira.features.home.services.FavoritesManager.isFavorite(context, animeId)
+
         // Load last watched progress
         val progress = WatchHistoryManager.getProgress(context, animeId)
         if (progress != null) {
@@ -108,6 +131,7 @@ fun AnimeDetailScreen(
         }
 
         try {
+            AnimeRepository.clearCache() // Ensure latest detail structure is parsed
             val d = AnimeRepository.fetchAnimeDetail(animeId, context = context)
             detail = d
             if (d.episodesDetail.sub.isNotEmpty()) {
@@ -124,20 +148,21 @@ fun AnimeDetailScreen(
         }
     }
 
-    val episodes = remember(detail, selectedAudioTab) {
+    val episodes = remember(detail, selectedAudioTab, isAscending) {
         val d = detail ?: return@remember emptyList()
         val rawList = when (selectedAudioTab) {
             "SUB" -> if (d.episodesDetail.sub.isNotEmpty()) d.episodesDetail.sub else (1..d.availableEpisodesSub).map { "$it" }
             "DUB" -> if (d.episodesDetail.dub.isNotEmpty()) d.episodesDetail.dub else (1..d.availableEpisodesDub).map { "$it" }
             else -> d.episodesDetail.raw
         }
-        // Sort naturally ascending so Episode 1 appears first, through the newest episode
-        rawList.sortedWith(Comparator { a, b ->
+        val comparator = Comparator<String> { a, b ->
             val numA = a.toDoubleOrNull()
             val numB = b.toDoubleOrNull()
-            if (numA != null && numB != null) numA.compareTo(numB)
+            val cmp = if (numA != null && numB != null) numA.compareTo(numB)
             else a.compareTo(b, ignoreCase = true)
-        })
+            if (isAscending) cmp else -cmp
+        }
+        rawList.sortedWith(comparator)
     }
 
     // Categorize into chunks of 100 episodes if total episodes > 100
@@ -154,7 +179,6 @@ fun AnimeDetailScreen(
     }
 
     var selectedRangeIndex by remember(episodes) {
-        // Automatically default to the range containing the last watched episode if present
         val initialIdx = if (episodes.size > 100 && lastWatchedEp != null) {
             val epIdx = episodes.indexOf(lastWatchedEp)
             if (epIdx >= 0) epIdx / 100 else 0
@@ -162,8 +186,11 @@ fun AnimeDetailScreen(
         mutableIntStateOf(initialIdx)
     }
 
-    val visibleEpisodes = remember(episodes, selectedRangeIndex, episodeChunks) {
-        if (episodeChunks.isNotEmpty()) {
+    val filteredEpisodes = remember(episodes, selectedRangeIndex, episodeChunks, episodeSearchQuery) {
+        val query = episodeSearchQuery.trim()
+        if (query.isNotEmpty()) {
+            episodes.filter { it.contains(query, ignoreCase = true) }
+        } else if (episodeChunks.isNotEmpty()) {
             val safeIdx = selectedRangeIndex.coerceIn(0, episodeChunks.lastIndex)
             episodeChunks[safeIdx]
         } else {
@@ -171,8 +198,8 @@ fun AnimeDetailScreen(
         }
     }
 
-    val chunkedEpisodes = remember(visibleEpisodes) {
-        visibleEpisodes.chunked(5)
+    val chunkedEpisodes = remember(filteredEpisodes) {
+        filteredEpisodes.chunked(5)
     }
 
     fun playEpisode(epStr: String, startMs: Long = 0L) {
@@ -260,21 +287,83 @@ fun AnimeDetailScreen(
                                 )
                         )
 
-                        // Floating Back Button
-                        IconButton(
-                            onClick = onNavigateBack,
+                        // Top Floating Action Bar (Back, Share, Bookmark/Favorite)
+                        Row(
                             modifier = Modifier
+                                .fillMaxWidth()
                                 .statusBarsPadding()
-                                .padding(start = 16.dp, top = 8.dp)
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(0x80000000))
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
-                            )
+                            IconButton(
+                                onClick = onNavigateBack,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x80000000))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = Color.White
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            // Share Button
+                            IconButton(
+                                onClick = {
+                                    val sendIntent = android.content.Intent().apply {
+                                        action = android.content.Intent.ACTION_SEND
+                                        putExtra(android.content.Intent.EXTRA_TEXT, "Check out $title on Akira!\nhttps://akira.moe/anime/$animeId")
+                                        type = "text/plain"
+                                    }
+                                    val shareIntent = android.content.Intent.createChooser(sendIntent, "Share $title")
+                                    context.startActivity(shareIntent)
+                                },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x80000000))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Share,
+                                    contentDescription = "Share",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            // Favorite / Bookmark Button
+                            IconButton(
+                                onClick = {
+                                    isFavorite = com.ghostreborn.akira.features.home.services.FavoritesManager.toggleFavorite(
+                                        context = context,
+                                        animeId = animeId,
+                                        title = title,
+                                        poster = posterUrl
+                                    )
+                                    Toast.makeText(
+                                        context,
+                                        if (isFavorite) "Added to Favorites" else "Removed from Favorites",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isFavorite) AkiraLogoGradientBrush else Brush.linearGradient(listOf(Color(0x80000000), Color(0x80000000))))
+                            ) {
+                                Icon(
+                                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                    contentDescription = "Favorite",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
 
                         // Poster thumbnail card + title banner row at the bottom of hero
@@ -435,15 +524,99 @@ fun AnimeDetailScreen(
                             }
                         }
 
-                        // Synopsis
+                        // Synopsis with Expand / Collapse
                         if (!d.description.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(16.dp))
+                            Column {
+                                Text(
+                                    text = d.description,
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp,
+                                    maxLines = if (isSynopsisExpanded) Int.MAX_VALUE else 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (isSynopsisExpanded) "Show Less" else "Read More",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AkiraPrimary,
+                                    modifier = Modifier
+                                        .clickable { isSynopsisExpanded = !isSynopsisExpanded }
+                                        .padding(vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        // Characters & Cast Carousel
+                        if (d.characters.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(20.dp))
                             Text(
-                                text = d.description,
-                                fontSize = 14.sp,
-                                lineHeight = 20.sp,
-                                color = MaterialTheme.colorScheme.onSurface
+                                text = "CHARACTERS & CAST",
+                                style = TextStyle(
+                                    brush = AkiraLogoGradientBrush,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 1.5.sp
+                                ),
+                                modifier = Modifier.padding(bottom = 10.dp)
                             )
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(d.characters) { character ->
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.width(72.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(62.dp)
+                                                .clip(CircleShape)
+                                                .border(1.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape)
+                                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (!character.image.isNullOrBlank()) {
+                                                AsyncImage(
+                                                    model = ImageRequest.Builder(context)
+                                                        .data(character.image)
+                                                        .apply {
+                                                            ImageUtils.imageHeaders.forEach { (k, v) -> addHeader(k, v) }
+                                                        }
+                                                        .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                                                        .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                                                        .crossfade(true)
+                                                        .build(),
+                                                    contentDescription = character.name,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = character.name,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        if (!character.actorName.isNullOrBlank()) {
+                                            Text(
+                                                text = character.actorName,
+                                                fontSize = 10.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         // Resume button if available
@@ -478,14 +651,67 @@ fun AnimeDetailScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Audio Selector (SUB / DUB / RAW)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Audio Selector & Controls Row (Sort order, Episode Search, and SUB/DUB/RAW)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Text(
                                 text = "EPISODES",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            // Sort Order Toggle (1 -> N vs N -> 1)
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .clickable { isAscending = !isAscending }
+                                    .padding(horizontal = 9.dp, vertical = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.SwapVert,
+                                        contentDescription = "Sort order",
+                                        tint = AkiraPrimary,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = if (isAscending) "Oldest" else "Newest",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            // Episode Quick Search Toggle
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSearchEpisodeOpen) AkiraLogoGradientBrush else Brush.linearGradient(listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.surfaceVariant)))
+                                    .clickable {
+                                        isSearchEpisodeOpen = !isSearchEpisodeOpen
+                                        if (!isSearchEpisodeOpen) episodeSearchQuery = ""
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Search,
+                                    contentDescription = "Find episode",
+                                    tint = if (isSearchEpisodeOpen) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
 
                             Spacer(modifier = Modifier.weight(1f))
 
@@ -545,7 +771,7 @@ fun AnimeDetailScreen(
                                                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                                                     indication = null
                                                 ) { selectedAudioTab = tab }
-                                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                                                .padding(horizontal = 10.dp, vertical = 6.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
@@ -560,10 +786,45 @@ fun AnimeDetailScreen(
                             }
                         }
 
+                        // Collapsible Episode Search Bar
+                        AnimatedVisibility(
+                            visible = isSearchEpisodeOpen,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
+                            Column {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                OutlinedTextField(
+                                    value = episodeSearchQuery,
+                                    onValueChange = { episodeSearchQuery = it },
+                                    placeholder = {
+                                        Text(
+                                            text = "Jump to episode number (e.g. 1042)...",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                        )
+                                    },
+                                    singleLine = true,
+                                    shape = CircleShape,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        focusedBorderColor = Color.Transparent,
+                                        unfocusedBorderColor = Color.Transparent,
+                                        cursorColor = AkiraPrimary
+                                    )
+                                )
+                            }
+                        }
+
                         Spacer(modifier = Modifier.height(14.dp))
 
                         // Range selector chips (1-100, 101-200, ...) for anime with many episodes
-                        if (episodeRanges.isNotEmpty()) {
+                        if (episodeRanges.isNotEmpty() && episodeSearchQuery.isBlank()) {
                             LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
@@ -654,6 +915,17 @@ fun AnimeDetailScreen(
                                             fontWeight = if (isLastWatched) FontWeight.ExtraBold else FontWeight.Bold,
                                             fontSize = 13.sp
                                         )
+                                        if (isLastWatched) {
+                                            // Mini glowing progress line at the bottom
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomCenter)
+                                                    .fillMaxWidth(0.6f)
+                                                    .height(2.5.dp)
+                                                    .clip(CircleShape)
+                                                    .background(AkiraLogoGradientBrush)
+                                            )
+                                        }
                                     }
                                 }
                             }
