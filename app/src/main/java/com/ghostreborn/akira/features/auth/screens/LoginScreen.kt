@@ -68,6 +68,8 @@ fun LoginScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    var isSignUp by rememberSaveable { mutableStateOf(false) }
+    var username by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
 
@@ -75,6 +77,7 @@ fun LoginScreen(
     var isImporting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showCaptchaDialog by remember { mutableStateOf(false) }
+    var registeredEmailForVerification by remember { mutableStateOf<String?>(null) }
 
     var preloadedToken by remember { mutableStateOf<String?>(null) }
 
@@ -100,17 +103,27 @@ fun LoginScreen(
         }
     }
 
-    fun performLogin(turnstileToken: String) {
+    fun performAuth(turnstileToken: String) {
         isLoading = true
         errorMessage = null
         scope.launch {
             try {
-                val authResult = AuthRepository.authenticate(
-                    usernameOrEmail = email.trim(),
-                    rawPassword = password,
-                    recaptchCode = turnstileToken,
-                    context = context
-                )
+                val authResult = if (isSignUp) {
+                    AuthRepository.register(
+                        username = username.trim(),
+                        email = email.trim(),
+                        rawPassword = password,
+                        recaptchCode = turnstileToken,
+                        context = context
+                    )
+                } else {
+                    AuthRepository.authenticate(
+                        usernameOrEmail = email.trim(),
+                        rawPassword = password,
+                        recaptchCode = turnstileToken,
+                        context = context
+                    )
+                }
 
                 TokenManager.saveAuthData(
                     context = context,
@@ -121,15 +134,19 @@ fun LoginScreen(
                     displayName = authResult.displayName,
                     picture = authResult.picture,
                     userId = authResult.userId,
-                    email = if (email.contains("@")) email.trim() else authResult.email,
+                    email = if (isSignUp) email.trim() else if (email.contains("@")) email.trim() else authResult.email,
                     isEmailVerified = authResult.isEmailVerified
                 )
 
                 Log.d("LoginScreen", "Auth success! Saving tokens and navigating to home...")
-                onLoginSuccess()
+                if (isSignUp && !authResult.isEmailVerified && !email.trim().isEmpty()) {
+                    registeredEmailForVerification = email.trim()
+                } else {
+                    onLoginSuccess()
+                }
             } catch (e: Exception) {
                 Log.e("LoginScreen", "Auth error: ${e.message}", e)
-                errorMessage = e.message ?: "Authentication failed"
+                errorMessage = e.message ?: if (isSignUp) "Registration failed" else "Authentication failed"
                 preloadedToken = null // Reset token on failure so next attempt gets a fresh one
                 Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
             } finally {
@@ -147,7 +164,7 @@ fun LoginScreen(
                     preloadedToken = token
                     if (showCaptchaDialog) {
                         showCaptchaDialog = false
-                        performLogin(token)
+                        performAuth(token)
                     }
                 }
             )
@@ -158,9 +175,23 @@ fun LoginScreen(
         CloudflareVerificationDialog(
             onTokenExtracted = { token ->
                 showCaptchaDialog = false
-                performLogin(token)
+                performAuth(token)
             },
             onDismiss = { showCaptchaDialog = false }
+        )
+    }
+
+    if (registeredEmailForVerification != null) {
+        com.ghostreborn.akira.features.auth.widgets.EmailVerificationDialog(
+            email = registeredEmailForVerification!!,
+            onDismiss = {
+                registeredEmailForVerification = null
+                onLoginSuccess()
+            },
+            onVerifiedSuccess = {
+                registeredEmailForVerification = null
+                onLoginSuccess()
+            }
         )
     }
 
@@ -181,15 +212,89 @@ fun LoginScreen(
         ) {
             AkiraBranding()
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            AkiraTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = "Email or Username",
-                keyboardType = KeyboardType.Email,
-                enabled = !isLoading
-            )
+            // Switch between Login and Sign Up
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (!isSignUp) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent)
+                        .clickable(enabled = !isLoading) {
+                            if (isSignUp) {
+                                isSignUp = false
+                                errorMessage = null
+                            }
+                        }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Sign In",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (!isSignUp) FontWeight.Bold else FontWeight.Medium,
+                        color = if (!isSignUp) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSignUp) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent)
+                        .clickable(enabled = !isLoading) {
+                            if (!isSignUp) {
+                                isSignUp = true
+                                errorMessage = null
+                            }
+                        }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Register",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (isSignUp) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSignUp) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            if (isSignUp) {
+                AkiraTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = "Username",
+                    enabled = !isLoading
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                AkiraTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = "Email Address",
+                    keyboardType = KeyboardType.Email,
+                    enabled = !isLoading
+                )
+            } else {
+                AkiraTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = "Email or Username",
+                    keyboardType = KeyboardType.Email,
+                    enabled = !isLoading
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -216,11 +321,11 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             AkiraButton(
-                text = "Login",
+                text = if (isSignUp) "Create Account" else "Login",
                 onClick = {
                     val token = preloadedToken
                     if (!token.isNullOrBlank()) {
-                        performLogin(token)
+                        performAuth(token)
                     } else {
                         showCaptchaDialog = true
                     }

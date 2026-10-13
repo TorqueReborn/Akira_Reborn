@@ -85,6 +85,10 @@ object TokenManager {
     fun isEmailVerified(context: Context? = null): Boolean =
         try { getPrefs(context).getBoolean(KEY_EMAIL_VERIFIED, false) } catch (_: Exception) { false }
 
+    fun setEmailVerified(context: Context, verified: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_EMAIL_VERIFIED, verified).apply()
+    }
+
     fun isLoggedIn(context: Context? = null): Boolean {
         val token = getAccessToken(context)
         return !token.isNullOrBlank()

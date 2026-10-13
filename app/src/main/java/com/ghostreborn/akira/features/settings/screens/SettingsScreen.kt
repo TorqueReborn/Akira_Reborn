@@ -86,7 +86,8 @@ fun SettingsScreen(
     val username = remember { TokenManager.getUsername(context) ?: "Otaku Member" }
     val email = remember { TokenManager.getEmail(context) }
     val picture = remember { TokenManager.getPicture(context) }
-    val isVerified = remember { TokenManager.isEmailVerified(context) }
+    var isVerified by remember { mutableStateOf(TokenManager.isEmailVerified(context)) }
+    var showVerifyEmailDialog by remember { mutableStateOf(false) }
 
     var isExporting by remember { mutableStateOf(false) }
     var isImporting by remember { mutableStateOf(false) }
@@ -183,8 +184,24 @@ fun SettingsScreen(
                 username = username,
                 email = email,
                 picture = picture,
-                isVerified = isVerified
+                isVerified = isVerified,
+                onVerifyClick = {
+                    if (!email.isNullOrBlank()) {
+                        showVerifyEmailDialog = true
+                    }
+                }
             )
+
+            if (showVerifyEmailDialog && !email.isNullOrBlank()) {
+                com.ghostreborn.akira.features.auth.widgets.EmailVerificationDialog(
+                    email = email,
+                    onDismiss = { showVerifyEmailDialog = false },
+                    onVerifiedSuccess = {
+                        isVerified = true
+                        showVerifyEmailDialog = false
+                    }
+                )
+            }
 
             Spacer(modifier = Modifier.height(28.dp))
 

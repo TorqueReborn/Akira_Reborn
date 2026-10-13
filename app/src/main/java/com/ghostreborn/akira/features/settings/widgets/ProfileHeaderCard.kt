@@ -2,6 +2,7 @@ package com.ghostreborn.akira.features.settings.widgets
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,7 +41,8 @@ fun ProfileHeaderCard(
     email: String?,
     picture: String?,
     isVerified: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onVerifyClick: (() -> Unit)? = null
 ) {
     Box(
         modifier = modifier
@@ -118,6 +120,22 @@ fun ProfileHeaderCard(
                                 tint = Color(0xFF10B981),
                                 modifier = Modifier.size(14.dp)
                             )
+                        } else if (onVerifyClick != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f))
+                                    .clickable { onVerifyClick() }
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Verify",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
                 }
