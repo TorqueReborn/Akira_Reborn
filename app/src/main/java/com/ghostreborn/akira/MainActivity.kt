@@ -21,6 +21,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ghostreborn.akira.features.auth.screens.LoginScreen
 import com.ghostreborn.akira.features.auth.services.TokenManager
+import com.ghostreborn.akira.features.auth.widgets.CloudflareVerificationDialog
+import com.ghostreborn.akira.core.config.MkissaConfigProvider
+import com.ghostreborn.akira.core.network.CaptchaChallengeManager
 import com.ghostreborn.akira.features.home.screens.AnimeDetailScreen
 import com.ghostreborn.akira.features.home.screens.HomeScreen
 import com.ghostreborn.akira.features.player.models.StreamSource
@@ -62,12 +65,25 @@ class MainActivity : ComponentActivity() {
         setContent {
             AkiraTheme {
                 val updateState = updateManager.uiState.collectAsState().value
+                val captchaChallenge = CaptchaChallengeManager.challenge.collectAsState().value
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     AkiraAppNavigation()
+
+                    if (captchaChallenge != null) {
+                        CloudflareVerificationDialog(
+                            onTokenExtracted = { token ->
+                                CaptchaChallengeManager.submitSolution(
+                                    token = token,
+                                    provider = MkissaConfigProvider.currentEndpoints.captchaProvider
+                                )
+                            },
+                            onDismiss = { CaptchaChallengeManager.cancelChallenge() }
+                        )
+                    }
 
                     UpdateDialog(
                         state = updateState,

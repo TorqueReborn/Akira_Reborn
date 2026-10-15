@@ -42,7 +42,9 @@ class PlayerViewModel(
                 thumbnailUrl = thumbnailUrl,
                 initialPositionMs = initialPositionMs,
                 episodes = episodes,
-                translationType = translationType
+                translationType = translationType,
+                errorMessage = null,
+                isFetchingEpisode = false
             )
         }
     }
@@ -82,17 +84,30 @@ class PlayerViewModel(
         _uiState.update { it.copy(errorMessage = message) }
     }
 
-    fun saveWatchProgress(context: Context, positionMs: Long, durationMs: Long) {
+    fun saveWatchProgress(
+        context: Context,
+        positionMs: Long,
+        durationMs: Long,
+        showIdOverride: String? = null,
+        titleOverride: String? = null,
+        episodeNumberOverride: String? = null,
+        thumbnailOverride: String? = null
+    ) {
         val state = _uiState.value
-        if (state.showId.isNotBlank() && state.episodeNumber.isNotBlank()) {
+        val showId = showIdOverride?.takeIf { it.isNotBlank() } ?: state.showId
+        val title = titleOverride?.takeIf { it.isNotBlank() } ?: state.title
+        val episodeNumber = episodeNumberOverride?.takeIf { it.isNotBlank() } ?: state.episodeNumber
+        val thumbnail = thumbnailOverride ?: state.thumbnailUrl
+
+        if (showId.isNotBlank() && episodeNumber.isNotBlank()) {
             WatchHistoryManager.saveProgress(
                 context = context,
-                animeId = state.showId,
-                animeTitle = state.title,
-                episodeNumber = state.episodeNumber,
+                animeId = showId,
+                animeTitle = title,
+                episodeNumber = episodeNumber,
                 seekPositionMs = positionMs,
                 totalDurationMs = durationMs,
-                thumbnail = state.thumbnailUrl
+                thumbnail = thumbnail
             )
         }
     }

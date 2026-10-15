@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.net.Uri
+import android.os.SystemClock
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -69,6 +70,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,6 +88,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -98,6 +101,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.ghostreborn.akira.core.config.MkissaConfigProvider
 import com.ghostreborn.akira.features.player.models.StreamSource
+import com.ghostreborn.akira.features.player.services.PlaybackFallbackPolicy
 import com.ghostreborn.akira.features.player.services.VideoCacheManager
 import com.ghostreborn.akira.features.player.viewmodels.PlayerViewModel
 import com.ghostreborn.akira.features.player.widgets.EpisodeDrawer
@@ -127,6 +131,12 @@ fun PlayerScreen(
     val activity = context as? Activity
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val uiState by viewModel.uiState.collectAsState()
+    val latestUiState by rememberUpdatedState(uiState)
+    val latestOnChangeEpisode by rememberUpdatedState(onChangeEpisode)
+    val latestAnimeId by rememberUpdatedState(animeId)
+    val latestAnimeTitle by rememberUpdatedState(animeTitle)
+    val latestRouteEpisodeNumber by rememberUpdatedState(episodeNumber)
+    val latestThumbnail by rememberUpdatedState(thumbnail)
 
     var isLocked by remember { mutableStateOf(false) }
     var currentPositionMs by remember { mutableLongStateOf(initialPositionMs) }
@@ -173,6 +183,18 @@ fun PlayerScreen(
             episodes = episodes,
             translationType = translationType
         )
+    }
+
+    // Reset the local timeline on episode changes so the previous episode's position
+    // cannot be applied to the newly selected episode during a navigation transition.
+    LaunchedEffect(animeId, episodeNumber, uiState.showId, uiState.episodeNumber, initialPositionMs) {
+        val routeMatchesState =
+            (uiState.showId.isBlank() || uiState.showId == animeId) &&
+                (uiState.episodeNumber.isBlank() || uiState.episodeNumber == episodeNumber)
+        currentPositionMs = if (routeMatchesState) initialPositionMs.coerceAtLeast(0L) else 0L
+        bufferedPositionMs = 0L
+        totalDurationMs = 0L
+        isLoading = true
     }
 
     // Immersive landscape orientation lock & window insets restoration on exit
@@ -222,10 +244,13 @@ fun PlayerScreen(
         onDispose { }
     }
 
-    // Initialize ExoPlayer with aggressive whole-video background buffering and disk cache
+    // Initialize ExoPlayer with bounded buffering and a reusable disk cache
     val exoPlayer = remember {
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:155.0) Gecko/20100101 Firefox/155.0")
+            .setConnectTimeoutMs(15_000)
+            .setReadTimeoutMs(30_000)
+            .setAllowCrossProtocolRedirects(true)
             .setDefaultRequestProperties(
                 mapOf(
                     "Referer" to MkissaConfigProvider.currentEndpoints.authReferer,
@@ -243,19 +268,18 @@ fun PlayerScreen(
         val mediaSourceFactory = DefaultMediaSourceFactory(context)
             .setDataSourceFactory(cacheDataSourceFactory)
 
-        // Allow buffering up to 30 minutes (entire episode) continuously in the background
+        // Keep in-memory buffering bounded. The disk cache remains responsible for reusable chunks.
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                /* minBufferMs = */ 30_000,
-                /* maxBufferMs = */ 30 * 60 * 1000,
-                /* bufferForPlaybackMs = */ 1_000,
-                /* bufferForPlaybackAfterRebufferMs = */ 2_500
+                /* minBufferMs = */ 15_000,
+                /* maxBufferMs = */ 60_000,
+                /* bufferForPlaybackMs = */ 2_500,
+                /* bufferForPlaybackAfterRebufferMs = */ 5_000
             )
             .setBackBuffer(
-                /* backBufferDurationMs = */ 30 * 60 * 1000,
+                /* backBufferDurationMs = */ 10_000,
                 /* retainBackBufferFromKeyframe = */ true
             )
-            .setPrioritizeTimeOverSizeThresholds(true)
             .build()
 
         ExoPlayer.Builder(context)
@@ -267,18 +291,32 @@ fun PlayerScreen(
     fun playCurrentSource(seekMs: Long = 0L) {
         val source = uiState.currentSource ?: return
         isLoading = true
-        val mediaItem = MediaItem.fromUri(Uri.parse(source.url))
-        exoPlayer.setMediaItem(mediaItem)
+        viewModel.setError(null)
+
+        val mediaItemBuilder = MediaItem.Builder().setUri(Uri.parse(source.url))
+        when {
+            source.isHls || source.fileExtension.equals("m3u8", ignoreCase = true) ->
+                mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)
+            source.fileExtension.equals("mp4", ignoreCase = true) ->
+                mediaItemBuilder.setMimeType(MimeTypes.VIDEO_MP4)
+        }
+
+        exoPlayer.setMediaItem(mediaItemBuilder.build())
         exoPlayer.playbackParameters = PlaybackParameters(currentSpeed)
         exoPlayer.prepare()
-        if (seekMs > 0) exoPlayer.seekTo(seekMs)
+        if (seekMs > 0L) exoPlayer.seekTo(seekMs)
         exoPlayer.playWhenReady = true
     }
 
-    LaunchedEffect(uiState.selectedSourceIndex, uiState.sources) {
-        if (uiState.sources.isNotEmpty()) {
-            val pos = if (initialPositionMs > 0 && currentPositionMs == initialPositionMs) initialPositionMs else currentPositionMs
-            playCurrentSource(pos)
+    LaunchedEffect(
+        uiState.showId,
+        uiState.episodeNumber,
+        uiState.selectedSourceIndex,
+        uiState.sources,
+        initialPositionMs
+    ) {
+        if (uiState.sources.isNotEmpty() && uiState.currentSource != null) {
+            playCurrentSource(currentPositionMs)
         }
     }
 
@@ -288,20 +326,59 @@ fun PlayerScreen(
     val hasPrevEpisode = currentEpIdx > 0
     val prevEpisodeNumber = if (hasPrevEpisode) episodes[currentEpIdx - 1] else null
 
-    LaunchedEffect(exoPlayer) {
-        exoPlayer.addListener(object : Player.Listener {
+    val latestHasNextEpisode by rememberUpdatedState(hasNextEpisode)
+    val latestNextEpisodeNumber by rememberUpdatedState(nextEpisodeNumber)
+    val latestIsSeeking by rememberUpdatedState(isSeeking)
+    val latestCurrentPositionMs by rememberUpdatedState(currentPositionMs)
+    val latestTotalDurationMs by rememberUpdatedState(totalDurationMs)
+
+    // Reset failed-source tracking when the show, episode, or source list changes.
+    val failedSourceIndices = remember(uiState.showId, uiState.episodeNumber, uiState.sources) {
+        mutableSetOf<Int>()
+    }
+    val latestFailedSourceIndices by rememberUpdatedState(failedSourceIndices)
+    val lastAutoAdvancedEpisode = remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(uiState.episodeNumber) {
+        // Permit automatic advancement again if the user later revisits this episode.
+        lastAutoAdvancedEpisode.value = null
+    }
+
+    // Keep one listener attached, but have it read the latest Compose state on every callback.
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 when (playbackState) {
                     Player.STATE_BUFFERING -> isLoading = true
                     Player.STATE_READY -> {
                         isLoading = false
                         totalDurationMs = exoPlayer.duration.coerceAtLeast(0L)
+                        viewModel.setError(null)
                     }
                     Player.STATE_ENDED -> {
                         isLoading = false
-                        if (hasNextEpisode && nextEpisodeNumber != null) {
-                            viewModel.fetchNextEpisodeStreams(context, nextEpisodeNumber) { newStreams ->
-                                onChangeEpisode?.invoke(nextEpisodeNumber, newStreams)
+                        val state = latestUiState
+                        val nextEpisode = latestNextEpisodeNumber
+                        if (
+                            latestHasNextEpisode &&
+                            nextEpisode != null &&
+                            !state.isFetchingEpisode &&
+                            lastAutoAdvancedEpisode.value != state.episodeNumber
+                        ) {
+                            lastAutoAdvancedEpisode.value = state.episodeNumber
+                            val duration = exoPlayer.duration.coerceAtLeast(0L)
+                            if (duration > 0L) {
+                                viewModel.saveWatchProgress(
+                                    context = context,
+                                    positionMs = duration,
+                                    durationMs = duration,
+                                    showIdOverride = latestAnimeId,
+                                    titleOverride = latestAnimeTitle,
+                                    episodeNumberOverride = latestRouteEpisodeNumber,
+                                    thumbnailOverride = latestThumbnail
+                                )
+                            }
+                            viewModel.fetchNextEpisodeStreams(context, nextEpisode) { newStreams ->
+                                latestOnChangeEpisode?.invoke(nextEpisode, newStreams)
                             }
                         }
                     }
@@ -311,30 +388,101 @@ fun PlayerScreen(
 
             override fun onIsPlayingChanged(playing: Boolean) {
                 isPlaying = playing
+                if (!playing) {
+                    val position = exoPlayer.currentPosition.coerceAtLeast(0L)
+                    val duration = exoPlayer.duration.coerceAtLeast(0L)
+                    currentPositionMs = position
+                    totalDurationMs = duration
+                    if (position > 0L && duration > 0L) {
+                        viewModel.saveWatchProgress(
+                            context = context,
+                            positionMs = position,
+                            durationMs = duration,
+                            showIdOverride = latestAnimeId,
+                            titleOverride = latestAnimeTitle,
+                            episodeNumberOverride = latestRouteEpisodeNumber,
+                            thumbnailOverride = latestThumbnail
+                        )
+                    }
+                }
             }
 
             override fun onPlayerError(error: PlaybackException) {
                 isLoading = false
-                val nextIdx = uiState.selectedSourceIndex + 1
-                if (nextIdx < uiState.sources.size) {
-                    viewModel.selectSourceIndex(nextIdx)
+                val state = latestUiState
+                val failedIndex = state.selectedSourceIndex
+                val failedIndices = latestFailedSourceIndices
+                failedIndices.add(failedIndex)
+
+                val nextIndex = PlaybackFallbackPolicy.nextUntriedDirectSourceIndex(
+                    sources = state.sources,
+                    failedSourceIndices = failedIndices
+                )
+
+                if (nextIndex != null) {
+                    val failedName = state.sources.getOrNull(failedIndex)?.sourceName
+                        ?.takeIf { it.isNotBlank() } ?: "Current source"
+                    val nextName = state.sources.getOrNull(nextIndex)?.sourceName
+                        ?.takeIf { it.isNotBlank() } ?: "Server ${nextIndex + 1}"
+                    Toast.makeText(
+                        context,
+                        "$failedName failed. Trying $nextName…",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    viewModel.selectSourceIndex(nextIndex)
                 } else {
-                    viewModel.setError("Playback failed on all available streams.")
+                    viewModel.setError(
+                        "All directly playable streams failed. Try Retry Stream, choose another server, or check your connection."
+                    )
                 }
             }
-        })
+        }
+
+        exoPlayer.addListener(listener)
+        onDispose {
+            exoPlayer.removeListener(listener)
+            val latestPosition = exoPlayer.currentPosition.takeIf { it > 0L } ?: latestCurrentPositionMs
+            val latestDuration = exoPlayer.duration.takeIf { it > 0L } ?: latestTotalDurationMs
+            if (latestPosition > 0L && latestDuration > 0L) {
+                viewModel.saveWatchProgress(
+                    context = context,
+                    positionMs = latestPosition,
+                    durationMs = latestDuration,
+                    showIdOverride = latestAnimeId,
+                    titleOverride = latestAnimeTitle,
+                    episodeNumberOverride = latestRouteEpisodeNumber,
+                    thumbnailOverride = latestThumbnail
+                )
+            }
+            exoPlayer.release()
+        }
     }
 
-    // Auto-save watch progress & update playback/buffered positions
+    // Update the seek-bar smoothly, but persist progress only every five seconds.
+    // Frequent SharedPreferences writes on every half-second poll add avoidable I/O.
     LaunchedEffect(exoPlayer) {
+        var lastSavedAtMs = SystemClock.elapsedRealtime()
         while (true) {
             delay(500L)
             bufferedPositionMs = exoPlayer.bufferedPosition.coerceAtLeast(0L)
-            if (exoPlayer.isPlaying && !isSeeking) {
-                currentPositionMs = exoPlayer.currentPosition
-                totalDurationMs = exoPlayer.duration.coerceAtLeast(0L)
-                if (currentPositionMs > 0 && totalDurationMs > 0) {
-                    viewModel.saveWatchProgress(context, currentPositionMs, totalDurationMs)
+            if (exoPlayer.isPlaying && !latestIsSeeking) {
+                val position = exoPlayer.currentPosition.coerceAtLeast(0L)
+                val duration = exoPlayer.duration.coerceAtLeast(0L)
+                currentPositionMs = position
+                totalDurationMs = duration
+
+                val now = SystemClock.elapsedRealtime()
+                if (position > 0L && duration > 0L && now - lastSavedAtMs >= 5_000L) {
+                    viewModel.saveWatchProgress(
+                        context = context,
+                        positionMs = position,
+                        durationMs = duration,
+                        showIdOverride = latestAnimeId,
+                        titleOverride = latestAnimeTitle,
+                        episodeNumberOverride = latestRouteEpisodeNumber,
+                        thumbnailOverride = latestThumbnail
+                    )
+                    lastSavedAtMs = now
                 }
             }
         }
@@ -349,10 +497,6 @@ fun PlayerScreen(
     }
 
     BackHandler { onNavigateBack() }
-
-    DisposableEffect(exoPlayer) {
-        onDispose { exoPlayer.release() }
-    }
 
     fun formatDuration(ms: Long): String {
         val totalSec = ms / 1000
@@ -580,6 +724,8 @@ fun PlayerScreen(
                             fontWeight = FontWeight.ExtraBold,
                             modifier = Modifier
                                 .clickable {
+                                    latestFailedSourceIndices.clear()
+                                    viewModel.setError(null)
                                     playCurrentSource(currentPositionMs)
                                 }
                                 .padding(8.dp)
@@ -1073,7 +1219,10 @@ fun PlayerScreen(
             SourceQualityPicker(
                 sources = uiState.sources,
                 selectedSourceIndex = uiState.selectedSourceIndex,
-                onSourceSelect = { idx -> viewModel.selectSourceIndex(idx) },
+                onSourceSelect = { idx ->
+                    latestFailedSourceIndices.clear()
+                    viewModel.selectSourceIndex(idx)
+                },
                 onDismiss = { viewModel.setQualityPickerOpen(false) }
             )
         }
@@ -1085,6 +1234,19 @@ fun PlayerScreen(
                 currentEpisodeNumber = uiState.episodeNumber,
                 isFetching = uiState.isFetchingEpisode,
                 onEpisodeSelect = { ep ->
+                    val position = exoPlayer.currentPosition.coerceAtLeast(0L)
+                    val duration = exoPlayer.duration.coerceAtLeast(0L)
+                    if (position > 0L && duration > 0L) {
+                        viewModel.saveWatchProgress(
+                            context = context,
+                            positionMs = position,
+                            durationMs = duration,
+                            showIdOverride = animeId,
+                            titleOverride = animeTitle,
+                            episodeNumberOverride = episodeNumber,
+                            thumbnailOverride = thumbnail
+                        )
+                    }
                     viewModel.fetchNextEpisodeStreams(context, ep) { newStreams ->
                         onChangeEpisode?.invoke(ep, newStreams)
                     }

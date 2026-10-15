@@ -7,6 +7,9 @@ import com.ghostreborn.akira.core.config.MkissaClientConfig
 import com.ghostreborn.akira.core.config.MkissaConfigProvider
 import com.ghostreborn.akira.core.config.OperationRegistry
 import com.ghostreborn.akira.core.di.ServiceLocator
+import com.ghostreborn.akira.core.network.MkissaGraphQlTransport
+import com.ghostreborn.akira.features.auth.services.AuthRepository
+import com.ghostreborn.akira.features.auth.services.TokenManager
 import com.ghostreborn.akira.features.home.models.AnimeDetail
 import com.ghostreborn.akira.features.home.models.AnimePageResult
 import com.ghostreborn.akira.features.home.models.AnimeShow
@@ -246,27 +249,22 @@ class DefaultAnimeRepository(
             })
         }
 
-        val encodedVars = Uri.encode(variablesObj.toString())
-        val encodedExts = Uri.encode(extensionsObj.toString())
-        val fullUrl = "$baseUrl?variables=$encodedVars&extensions=$encodedExts"
-
+        val cacheKey = "$baseUrl?variables=${Uri.encode(variablesObj.toString())}&extensions=${Uri.encode(extensionsObj.toString())}"
         if (q.isNullOrEmpty()) {
-            pageCache[fullUrl]?.let { return@withContext it }
+            pageCache[cacheKey]?.let { return@withContext it }
         }
 
-        val reqBuilder = Request.Builder().url(fullUrl)
-        getHeaders(buildId).forEach { (k, v) -> reqBuilder.header(k, v) }
-
-        httpClient.newCall(reqBuilder.build()).execute().use { resp ->
-            val body = resp.body?.string() ?: ""
-            if (!resp.isSuccessful) throw IllegalStateException("Server error: HTTP ${resp.code}")
-
-            val result = parseAnimeResponse(body, page)
-            if (q.isNullOrEmpty()) {
-                pageCache[fullUrl] = result
-            }
-            result
-        }
+        val body = MkissaGraphQlTransport.executePersistedQuery(
+            client = httpClient,
+            apiBaseUrl = config.endpoints.apiBaseUrl,
+            variables = variablesObj,
+            extensions = extensionsObj,
+            headers = getHeaders(buildId),
+            authToken = AuthRepository.getValidAccessTokenOrNull(context)
+        )
+        val result = parseAnimeResponse(body, page)
+        if (q.isNullOrEmpty()) pageCache[cacheKey] = result
+        result
     }
 
     override suspend fun fetchTopRankedAnime(
@@ -296,34 +294,29 @@ class DefaultAnimeRepository(
             })
         }
 
-        val encodedVars = Uri.encode(variablesObj.toString())
-        val encodedExts = Uri.encode(extensionsObj.toString())
-        val fullUrl = "$baseUrl?variables=$encodedVars&extensions=$encodedExts"
+        val body = MkissaGraphQlTransport.executePersistedQuery(
+            client = httpClient,
+            apiBaseUrl = config.endpoints.apiBaseUrl,
+            variables = variablesObj,
+            extensions = extensionsObj,
+            headers = getHeaders(buildId),
+            authToken = AuthRepository.getValidAccessTokenOrNull(context)
+        )
+        val json = JSONObject(body)
+        throwIfGraphQlErrors(json, "Failed to load top-ranked anime")
+        val data = json.optJSONObject("data")
+        val top10 = data?.optJSONObject("top10")
+        val edges = top10?.optJSONArray("edges")
 
-        val reqBuilder = Request.Builder().url(fullUrl)
-        getHeaders(buildId).forEach { (k, v) -> reqBuilder.header(k, v) }
-
-        httpClient.newCall(reqBuilder.build()).execute().use { resp ->
-            val body = resp.body?.string() ?: ""
-            if (!resp.isSuccessful) throw IllegalStateException("Server error: HTTP ${resp.code}")
-
-            val json = JSONObject(body)
-            val data = json.optJSONObject("data")
-            val top10 = data?.optJSONObject("top10")
-            val edges = top10?.optJSONArray("edges")
-
-            val list = mutableListOf<AnimeShow>()
-            if (edges != null) {
-                for (i in 0 until edges.length()) {
-                    val item = edges.optJSONObject(i)
-                    if (item != null) {
-                        list.add(AnimeShow.fromRankedCard(item))
-                    }
-                }
+        val list = mutableListOf<AnimeShow>()
+        if (edges != null) {
+            for (i in 0 until edges.length()) {
+                val item = edges.optJSONObject(i)
+                if (item != null) list.add(AnimeShow.fromRankedCard(item))
             }
-            topRankedCache = list
-            list
         }
+        topRankedCache = list
+        list
     }
 
     override suspend fun fetchAnimeDetail(
@@ -354,33 +347,31 @@ class DefaultAnimeRepository(
             })
         }
 
-        val encodedVars = Uri.encode(variablesObj.toString())
-        val encodedExts = Uri.encode(extensionsObj.toString())
-        val fullUrl = "$baseUrl?variables=$encodedVars&extensions=$encodedExts"
+        val body = MkissaGraphQlTransport.executePersistedQuery(
+            client = httpClient,
+            apiBaseUrl = config.endpoints.apiBaseUrl,
+            variables = variablesObj,
+            extensions = extensionsObj,
+            headers = getHeaders(buildId),
+            authToken = AuthRepository.getValidAccessTokenOrNull(context)
+        )
+        val json = JSONObject(body)
+        throwIfGraphQlErrors(json, "Failed to load anime details")
+        val data = json.optJSONObject("data")
+        val showMap = data?.optJSONObject("show") ?: data?.optJSONObject("anime")
+            ?: throw IllegalStateException("Anime details not found.")
 
-        val reqBuilder = Request.Builder().url(fullUrl)
-        getHeaders(buildId).forEach { (k, v) -> reqBuilder.header(k, v) }
+        val detail = AnimeDetail.fromJson(showMap)
+        detailCache[animeId] = detail
+        detail
+    }
 
-        httpClient.newCall(reqBuilder.build()).execute().use { resp ->
-            val body = resp.body?.string() ?: ""
-            if (!resp.isSuccessful) throw IllegalStateException("Server error: HTTP ${resp.code}")
-
-            val json = JSONObject(body)
-            if (json.has("errors")) {
-                val errors = json.optJSONArray("errors")
-                val first = errors?.optJSONObject(0)
-                val msg = first?.optString("message") ?: "Failed to load anime details"
-                throw IllegalStateException(msg)
-            }
-
-            val data = json.optJSONObject("data")
-            val showMap = data?.optJSONObject("show") ?: data?.optJSONObject("anime")
-                ?: throw IllegalStateException("Anime details not found.")
-
-            val detail = AnimeDetail.fromJson(showMap)
-            detailCache[animeId] = detail
-            detail
-        }
+    private fun throwIfGraphQlErrors(json: JSONObject, fallbackMessage: String) {
+        val errors = json.optJSONArray("errors") ?: return
+        if (errors.length() == 0) return
+        val first = errors.optJSONObject(0)
+        val message = first?.optString("message")?.takeIf { it.isNotBlank() } ?: fallbackMessage
+        throw IllegalStateException(message)
     }
 
     private fun parseAnimeResponse(rawResponse: String, page: Int): AnimePageResult {
@@ -420,17 +411,24 @@ class DefaultAnimeRepository(
         require(episodeString.isNotBlank()) { "Episode string cannot be empty." }
 
         var config = MkissaConfigProvider.getConfig(context)
-        val queryHash = config.getOperationHash(OperationRegistry.OP_EPISODE)
         val effectiveLane = OperationRegistry.resolveLaneForQuery(OperationRegistry.OP_EPISODE)
             ?: throw IllegalStateException("Unsupported or unknown content lane for episode operation")
 
-        fun executeEpisodeQuery(
+        val requestAuthToken = try {
+            AuthRepository.getValidAccessTokenOrNull(context)
+        } catch (e: Exception) {
+            Log.w(InternalConstants.TAG, "Could not refresh the saved session: ${e.message}")
+            null
+        } ?: if (!TokenManager.isAccessTokenExpired(context)) authToken else null
+
+        suspend fun executeEpisodeQuery(
             bootstrap: CryptoBootstrap,
             cfg: MkissaClientConfig,
             explicitAaReq: String? = null
         ): String {
+            val activeQueryHash = cfg.getOperationHash(OperationRegistry.OP_EPISODE)
             val effectiveAaReq = explicitAaReq ?: Decryptor.generateAaReq(
-                queryHash = queryHash,
+                queryHash = activeQueryHash,
                 bootstrap = bootstrap,
                 buildId = cfg.buildId,
                 config = cfg
@@ -445,31 +443,23 @@ class DefaultAnimeRepository(
             val extensionsObj = JSONObject().apply {
                 put("persistedQuery", JSONObject().apply {
                     put("version", 1)
-                    put("sha256Hash", queryHash)
+                    put("sha256Hash", activeQueryHash)
                 })
                 put("k", effectiveLane)
                 put("aaReq", effectiveAaReq)
             }
 
-            val fullUrl = "$baseUrl?variables=${Uri.encode(variablesObj.toString())}&extensions=${Uri.encode(extensionsObj.toString())}"
-            val reqBuilder = Request.Builder().url(fullUrl)
-            getHeaders(cfg.buildId).forEach { (k, v) -> reqBuilder.header(k, v) }
-
-            if (!authToken.isNullOrBlank()) {
-                val authHeader = if (authToken.startsWith("Bearer ", ignoreCase = true)) authToken else "Bearer $authToken"
-                reqBuilder.header("authorization", authHeader)
-            }
-
-            httpClient.newCall(reqBuilder.build()).execute().use { response ->
-                val body = response.body?.string() ?: ""
-                if (!response.isSuccessful) {
-                    throw IllegalStateException("API error HTTP ${response.code}: $body")
-                }
-                return body
-            }
+            return MkissaGraphQlTransport.executePersistedQuery(
+                client = httpClient,
+                apiBaseUrl = cfg.endpoints.apiBaseUrl,
+                variables = variablesObj,
+                extensions = extensionsObj,
+                headers = getHeaders(cfg.buildId),
+                authToken = requestAuthToken
+            )
         }
 
-        var bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, buildId = config.buildId, authToken = authToken, config = config)
+        var bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, buildId = config.buildId, authToken = requestAuthToken, config = config)
         var responseStr = executeEpisodeQuery(bootstrap, config)
 
         fun checkBuildIdError(resp: String): Boolean {
@@ -495,7 +485,7 @@ class DefaultAnimeRepository(
 
             try {
                 config = MkissaConfigProvider.getConfig(context, forceRefresh = true)
-                bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, buildId = config.buildId, authToken = authToken, forceRefresh = true, config = config)
+                bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, buildId = config.buildId, authToken = requestAuthToken, forceRefresh = true, config = config)
                 val freshAaReq = Decryptor.generateAaReq(
                     queryHash = config.getOperationHash(OperationRegistry.OP_EPISODE),
                     bootstrap = bootstrap,
@@ -517,7 +507,7 @@ class DefaultAnimeRepository(
             Decryptor.invalidateBootstrapCacheForLane(effectiveLane)
 
             try {
-                bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, buildId = config.buildId, authToken = authToken, forceRefresh = true, config = config)
+                bootstrap = Decryptor.getBootstrap(context, lane = effectiveLane, buildId = config.buildId, authToken = requestAuthToken, forceRefresh = true, config = config)
                 val freshAaReq = Decryptor.generateAaReq(
                     queryHash = config.getOperationHash(OperationRegistry.OP_EPISODE),
                     bootstrap = bootstrap,

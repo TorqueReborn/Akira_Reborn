@@ -516,17 +516,24 @@ object MkissaConfigProvider {
      * Parses operation query hashes from JS bundle text without breaking on unknown tokens.
      */
     fun parseHashesFromBundle(jsContent: String, outHashes: MutableMap<String, String>) {
-        val pqRegex = Regex("""persistedQuery\s*:\s*\{\s*version\s*:\s*1\s*,\s*sha256Hash\s*:\s*["']([a-f0-9]{64})["']""", RegexOption.IGNORE_CASE)
-        val matches = pqRegex.findAll(jsContent)
-        for (m in matches) {
-            val hash = m.groupValues[1].lowercase()
-            if (OperationRegistry.isValidSha256Hash(hash)) {
-                val start = (m.range.first - 400).coerceAtLeast(0)
-                val snippet = jsContent.substring(start, m.range.first)
-                val lane = OperationRegistry.resolveLaneForQuery(snippet)
-                if (lane == OperationRegistry.LANE_EPISODE) {
-                    outHashes[OperationRegistry.OP_EPISODE] = hash
-                }
+        // Keep this tolerant of minifier formatting and small changes in persistedQuery object order.
+        val pqRegex = Regex(
+            """(?:persistedQuery\s*:\s*\{[^}]{0,240}?\bsha256Hash\s*:\s*["']([a-f0-9]{64})["']|\bsha256Hash\s*:\s*["']([a-f0-9]{64})["'])""",
+            RegexOption.IGNORE_CASE
+        )
+        for (match in pqRegex.findAll(jsContent)) {
+            val hash = (match.groupValues.getOrNull(1).orEmpty().ifBlank { match.groupValues.getOrNull(2).orEmpty() }).lowercase()
+            if (!OperationRegistry.isValidSha256Hash(hash)) continue
+
+            // Query fields are often a little way before the extension object in minified bundles.
+            val start = (match.range.first - 5_000).coerceAtLeast(0)
+            val snippet = jsContent.substring(start, match.range.first)
+            val operation = OperationRegistry.resolveOperationForQuery(snippet)
+            if (operation != null) {
+                outHashes[operation] = hash
+            } else if (OperationRegistry.resolveLaneForQuery(snippet) == OperationRegistry.LANE_EPISODE) {
+                // Retain the known lane-based fallback for bundles where the root field is not close.
+                outHashes[OperationRegistry.OP_EPISODE] = hash
             }
         }
     }

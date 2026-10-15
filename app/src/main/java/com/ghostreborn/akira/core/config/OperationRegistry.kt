@@ -64,4 +64,20 @@ object OperationRegistry {
             else -> null
         }
     }
+
+    /** Best-effort operation recognition for hashes found in downloaded frontend bundles. */
+    fun resolveOperationForQuery(queryStringOrSnippet: String): String? {
+        val str = queryStringOrSnippet.trim()
+        val candidates = listOf(
+            OP_CHAPTER_PAGES to Regex("""\bchapterPages\s*\(""", RegexOption.IGNORE_CASE),
+            OP_TOP_RANKED to Regex("""\btop10\s*\(""", RegexOption.IGNORE_CASE),
+            OP_EPISODE to Regex("""\bepisode\s*\(""", RegexOption.IGNORE_CASE),
+            OP_MUSIC to Regex("""\bmusic\s*\(""", RegexOption.IGNORE_CASE),
+            OP_BROWSE to Regex("""\bshows\s*\(""", RegexOption.IGNORE_CASE),
+            OP_DETAIL to Regex("""\bshow\s*\(""", RegexOption.IGNORE_CASE)
+        )
+        return candidates.mapNotNull { (operation, regex) ->
+            regex.findAll(str).lastOrNull()?.range?.first?.let { operation to it }
+        }.maxByOrNull { it.second }?.first
+    }
 }
