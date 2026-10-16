@@ -56,7 +56,13 @@ object BackupManager {
         }
         root.put("contentPreferences", prefsObj)
 
-        // 4. Auth Session
+        // 4. Private Remarks / Notes
+        val remarks = com.ghostreborn.akira.features.home.services.UserRemarksManager.getAllRemarks(context)
+        val remarksObj = JSONObject()
+        remarks.forEach { (k, v) -> remarksObj.put(k, v) }
+        root.put("userRemarks", remarksObj)
+
+        // 5. Auth Session
         if (includeAuth && TokenManager.isLoggedIn(context)) {
             val authObj = JSONObject().apply {
                 put("accessToken", TokenManager.getAccessToken(context) ?: "")
@@ -160,7 +166,19 @@ object BackupManager {
                 )
             }
 
-            // 4. Restore Auth Session if present
+            // 4. Restore Private Remarks / Notes
+            if (root.has("userRemarks")) {
+                val remarksObj = root.getJSONObject("userRemarks")
+                val remarksMap = mutableMapOf<String, String>()
+                val keys = remarksObj.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    remarksMap[key] = remarksObj.optString(key, "")
+                }
+                com.ghostreborn.akira.features.home.services.UserRemarksManager.restoreRemarks(context, remarksMap)
+            }
+
+            // 5. Restore Auth Session if present
             var authRestored = false
             if (root.has("authSession")) {
                 val authObj = root.getJSONObject("authSession")

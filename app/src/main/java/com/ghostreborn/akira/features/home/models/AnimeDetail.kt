@@ -285,16 +285,25 @@ data class AnimeDetail(
             }
 
             val availableEpisodesObj = json.optJSONObject("availableEpisodes")
-            val availableEpisodesSub = availableEpisodesObj?.optInt("sub", 0) ?: 0
+            val availableChaptersObj = json.optJSONObject("availableChapters")
+            val availableEpisodesSub = when {
+                availableEpisodesObj != null -> availableEpisodesObj.optInt("sub", 0)
+                availableChaptersObj != null -> availableChaptersObj.optInt("sub", availableChaptersObj.optInt("raw", 0))
+                json.has("chapterCount") -> json.optInt("chapterCount", 0)
+                else -> 0
+            }
             val availableEpisodesDub = availableEpisodesObj?.optInt("dub", 0) ?: 0
 
             val lastEpisodeInfoObj = json.optJSONObject("lastEpisodeInfo")
-            val subInfo = lastEpisodeInfoObj?.optJSONObject("sub")
+            val lastChapterInfoObj = json.optJSONObject("lastChapterInfo")
+            val subInfo = lastEpisodeInfoObj?.optJSONObject("sub") ?: lastChapterInfoObj?.optJSONObject("sub") ?: lastChapterInfoObj?.optJSONObject("raw")
             val dubInfo = lastEpisodeInfoObj?.optJSONObject("dub")
             val lastEpisodeSub = subInfo?.optString("episodeString")?.takeIf { it.isNotBlank() }
+                ?: subInfo?.optString("chapterString")?.takeIf { it.isNotBlank() }
             val lastEpisodeDub = dubInfo?.optString("episodeString")?.takeIf { it.isNotBlank() }
 
             val epDetailObj = json.optJSONObject("availableEpisodesDetail")
+                ?: json.optJSONObject("availableChaptersDetail")
             val episodesDetail = AnimeEpisodeDetail.fromJson(epDetailObj)
 
             val charList = mutableListOf<AnimeCharacter>()

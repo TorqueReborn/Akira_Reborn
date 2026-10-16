@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Star
@@ -40,6 +41,7 @@ import com.ghostreborn.akira.utils.ImageUtils
 fun AnimeCard(
     anime: AnimeShow,
     modifier: Modifier = Modifier,
+    hasNewEpisode: Boolean = false,
     onTap: () -> Unit
 ) {
     val context = LocalContext.current
@@ -98,6 +100,12 @@ fun AnimeCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (anime.availableEpisodesSub > 0 || anime.availableEpisodesDub > 0) {
+                val isManga = anime.type?.equals("manga", ignoreCase = true) == true
+                val badgeText = when {
+                    isManga -> "CH ${anime.availableEpisodesSub}"
+                    anime.availableEpisodesSub > 0 -> "EP ${anime.availableEpisodesSub}"
+                    else -> "DUB ${anime.availableEpisodesDub}"
+                }
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
@@ -105,10 +113,28 @@ fun AnimeCard(
                         .padding(horizontal = 7.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = if (anime.availableEpisodesSub > 0) "EP ${anime.availableEpisodesSub}" else "DUB ${anime.availableEpisodesDub}",
+                        text = badgeText,
                         color = Color.White,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            if (hasNewEpisode) {
+                Spacer(modifier = Modifier.width(5.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Brush.horizontalGradient(listOf(Color(0xFFEF4444), Color(0xFFF97316))))
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = "NEW",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp
                     )
                 }
             }

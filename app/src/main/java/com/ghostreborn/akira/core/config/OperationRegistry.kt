@@ -15,6 +15,7 @@ data class OperationDescriptor(
 object OperationRegistry {
     // Operation identifiers
     const val OP_BROWSE = "browse"
+    const val OP_MANGA_BROWSE = "mangaBrowse"
     const val OP_TOP_RANKED = "topRanked"
     const val OP_DETAIL = "detail"
     const val OP_EPISODE = "episode"
@@ -23,9 +24,11 @@ object OperationRegistry {
 
     // Default validated query hashes (fallback)
     const val DEFAULT_BROWSE_HASH = "8b319a0fda488e4319f1b6d99093ba12802f3fc039572f39bcc02d5f9b9d9b02"
+    const val DEFAULT_MANGA_BROWSE_HASH = "b276e1bd49b2f9718dc8429035fc2f0a979e6027c561c6dd6605cd751a904331"
     const val DEFAULT_TOP_RANKED_HASH = "c947693e2a04dfa9074df5ec01c6c5209fc9f9556f3e5d420dbca97f9d1b6d98"
     const val DEFAULT_DETAIL_HASH = "c6c067496f962fba87c7aaf6c215a40a6d3933c69012bd15e4d8949e58f3c010"
     const val DEFAULT_EPISODE_HASH = "670bbf38d0868f446e2346c1e956ca2c40c416e733ca248fd54e04f1c8b99145"
+    const val DEFAULT_CHAPTER_PAGES_HASH = "59c49e0a9d656fbcc048e332230820346ad038056ad00c22c137084fbe15ea52"
 
     // Content lane constants verified against frontend bundle
     const val LANE_EPISODE = "k7"
@@ -73,6 +76,7 @@ object OperationRegistry {
             OP_TOP_RANKED to Regex("""\btop10\s*\(""", RegexOption.IGNORE_CASE),
             OP_EPISODE to Regex("""\bepisode\s*\(""", RegexOption.IGNORE_CASE),
             OP_MUSIC to Regex("""\bmusic\s*\(""", RegexOption.IGNORE_CASE),
+            OP_MANGA_BROWSE to Regex("""\bmangas\s*\(""", RegexOption.IGNORE_CASE),
             OP_BROWSE to Regex("""\bshows\s*\(""", RegexOption.IGNORE_CASE),
             OP_DETAIL to Regex("""\bshow\s*\(""", RegexOption.IGNORE_CASE)
         )

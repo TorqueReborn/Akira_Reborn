@@ -9,5 +9,8 @@ data class AnimeDetailUiState(
     val isFavorite: Boolean = false,
     val selectedEpisodeNumber: String? = null,
     val isFetchingStreams: Boolean = false,
-    val episodeStreams: List<StreamSource> = emptyList()
+    val episodeStreams: List<StreamSource> = emptyList(),
+    val watchStatus: com.ghostreborn.akira.features.auth.services.WatchStatus? = null,
+    val watchStateId: String? = null,
+    val isUpdatingWatchStatus: Boolean = false
 )

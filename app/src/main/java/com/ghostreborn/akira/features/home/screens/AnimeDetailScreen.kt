@@ -39,6 +39,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -47,6 +48,8 @@ import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -83,9 +86,19 @@ import coil.request.ImageRequest
 import com.ghostreborn.akira.features.home.viewmodels.AnimeDetailViewModel
 import com.ghostreborn.akira.features.player.models.StreamSource
 import com.ghostreborn.akira.features.player.services.WatchHistoryManager
+import com.ghostreborn.akira.features.home.models.AnimeCharacter
+import com.ghostreborn.akira.features.home.models.CommunityReview
+import com.ghostreborn.akira.features.home.models.MusicTrack
+import com.ghostreborn.akira.features.home.services.MusicRepository
+import com.ghostreborn.akira.features.home.services.ReviewRepository
+import com.ghostreborn.akira.features.home.widgets.MiniMusicPlayerBar
+import com.ghostreborn.akira.features.home.widgets.detail.CharacterDetailDialog
+import com.ghostreborn.akira.features.home.widgets.detail.CommunityReviewsSection
+import com.ghostreborn.akira.features.home.widgets.detail.SoundtrackSection
 import com.ghostreborn.akira.ui.components.AkiraLogoGradientBrush
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
 import com.ghostreborn.akira.utils.ImageUtils
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -95,6 +108,7 @@ fun AnimeDetailScreen(
     posterHint: String? = null,
     onNavigateBack: () -> Unit,
     onPlayEpisode: (String, List<StreamSource>, Long, List<String>, String) -> Unit,
+    onReadChapter: ((String, String) -> Unit)? = null,
     viewModel: AnimeDetailViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -108,13 +122,43 @@ fun AnimeDetailScreen(
 
     var lastProgressMs by remember { mutableLongStateOf(0L) }
     var lastWatchedEp by remember { mutableStateOf<String?>(null) }
+    var userRemarks by remember { mutableStateOf("") }
+    var isRemarksEditing by remember { mutableStateOf(false) }
+
+    val soundtracks = remember { androidx.compose.runtime.mutableStateListOf<MusicTrack>() }
+    val communityReviews = remember { androidx.compose.runtime.mutableStateListOf<CommunityReview>() }
+    var selectedCharacterForDialog by remember { mutableStateOf<AnimeCharacter?>(null) }
 
     LaunchedEffect(animeId) {
         viewModel.loadAnimeDetail(context, animeId)
-        val progress = WatchHistoryManager.getProgress(context, animeId)
-        if (progress != null) {
-            lastProgressMs = progress.seekPositionMs
-            lastWatchedEp = progress.episodeNumber
+        userRemarks = com.ghostreborn.akira.features.home.services.UserRemarksManager.getRemarks(context, animeId)
+        val mangaProgress = com.ghostreborn.akira.features.manga.data.MangaHistoryManager.getProgress(context, animeId)
+        if (mangaProgress != null) {
+            lastWatchedEp = mangaProgress.lastChapterString
+        } else {
+            val progress = WatchHistoryManager.getProgress(context, animeId)
+            if (progress != null) {
+                lastProgressMs = progress.seekPositionMs
+                lastWatchedEp = progress.episodeNumber
+            }
+        }
+
+        // Fetch OST & theme songs for this show
+        launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val tracks = MusicRepository.fetchMusics(context, showId = animeId, limit = 15)
+                soundtracks.clear()
+                soundtracks.addAll(tracks)
+            } catch (_: Exception) {}
+        }
+
+        // Fetch Community Reviews & Ratings for this show
+        launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val reviews = ReviewRepository.fetchReviews(context, showId = animeId, limit = 10)
+                communityReviews.clear()
+                communityReviews.addAll(reviews)
+            } catch (_: Exception) {}
         }
     }
 
@@ -184,6 +228,13 @@ fun AnimeDetailScreen(
     }
 
     fun playEpisode(epStr: String, startMs: Long = 0L) {
+        val detail = uiState.animeDetail
+        val isManga = detail?.type?.equals("manga", ignoreCase = true) == true ||
+                detail?.type?.contains("manga", ignoreCase = true) == true
+        if (isManga && onReadChapter != null) {
+            onReadChapter(epStr, selectedAudioTab.lowercase())
+            return
+        }
         if (uiState.isFetchingStreams) return
         val currentAudioTab = selectedAudioTab.lowercase()
         viewModel.fetchEpisodeStreams(
@@ -416,7 +467,11 @@ fun AnimeDetailScreen(
                             Spacer(modifier = Modifier.height(14.dp))
 
                             // Metadata Pills Row
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 if (d.score != null && d.score > 0) {
                                     Box(
                                         modifier = Modifier
@@ -441,7 +496,6 @@ fun AnimeDetailScreen(
                                             )
                                         }
                                     }
-                                    Spacer(modifier = Modifier.width(8.dp))
                                 }
 
                                 if (d.type != null) {
@@ -458,7 +512,6 @@ fun AnimeDetailScreen(
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
-                                    Spacer(modifier = Modifier.width(8.dp))
                                 }
 
                                 if (d.status != null) {
@@ -474,6 +527,61 @@ fun AnimeDetailScreen(
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold
                                         )
+                                    }
+                                }
+
+                                // Cloud Watchlist Status Selector Pill
+                                if (uiState.watchStateId != null) {
+                                    var isDropdownOpen by remember { mutableStateOf(false) }
+                                    Box {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(
+                                                    if (uiState.watchStatus != null) MaterialTheme.colorScheme.primaryContainer
+                                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                                                )
+                                                .clickable { isDropdownOpen = true }
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = uiState.watchStatus?.label ?: "Add to Watchlist",
+                                                    color = if (uiState.watchStatus != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Icon(
+                                                    imageVector = Icons.Rounded.ArrowDropDown,
+                                                    contentDescription = null,
+                                                    tint = if (uiState.watchStatus != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
+                                        }
+
+                                        DropdownMenu(
+                                            expanded = isDropdownOpen,
+                                            onDismissRequest = { isDropdownOpen = false }
+                                        ) {
+                                            com.ghostreborn.akira.features.auth.services.WatchStatus.entries.forEach { statusOption ->
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Text(
+                                                            text = statusOption.label,
+                                                            fontWeight = if (uiState.watchStatus == statusOption) FontWeight.Bold else FontWeight.Normal,
+                                                            color = if (uiState.watchStatus == statusOption) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                    },
+                                                    onClick = {
+                                                        isDropdownOpen = false
+                                                        viewModel.setWatchStatus(context, statusOption)
+                                                        Toast.makeText(context, "Set to ${statusOption.label}", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -529,6 +637,82 @@ fun AnimeDetailScreen(
                                 }
                             }
 
+                            // Personal Notes / Remarks Section
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                                    .padding(14.dp)
+                            ) {
+                                Column {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "PERSONAL NOTES / REMARKS",
+                                            style = TextStyle(
+                                                brush = AkiraLogoGradientBrush,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                letterSpacing = 1.2.sp
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        Text(
+                                            text = if (isRemarksEditing) "Done" else if (userRemarks.isBlank()) "+ Add Note" else "Edit",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = AkiraPrimary,
+                                            modifier = Modifier
+                                                .clickable {
+                                                    if (isRemarksEditing) {
+                                                        com.ghostreborn.akira.features.home.services.UserRemarksManager.saveRemarks(context, animeId, userRemarks)
+                                                        Toast.makeText(context, "Note saved!", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                    isRemarksEditing = !isRemarksEditing
+                                                }
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+
+                                    if (isRemarksEditing) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        OutlinedTextField(
+                                            value = userRemarks,
+                                            onValueChange = { userRemarks = it },
+                                            placeholder = { Text("Add private remarks or thoughts on this title...", fontSize = 12.sp) },
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = AkiraPrimary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                            ),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    } else if (userRemarks.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = userRemarks,
+                                            fontSize = 13.sp,
+                                            lineHeight = 18.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    } else {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "No private remarks yet. Tap '+ Add Note' to write personal notes.",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                            }
+
                             // Characters & Cast Carousel
                             if (d.characters.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(20.dp))
@@ -549,7 +733,9 @@ fun AnimeDetailScreen(
                                     items(d.characters) { character ->
                                         Column(
                                             horizontalAlignment = Alignment.CenterHorizontally,
-                                            modifier = Modifier.width(72.dp)
+                                            modifier = Modifier
+                                                .width(72.dp)
+                                                .clickable { selectedCharacterForDialog = character }
                                         ) {
                                             Box(
                                                 modifier = Modifier
@@ -599,8 +785,16 @@ fun AnimeDetailScreen(
                                 }
                             }
 
+                            // Soundtracks (OPs / EDs / OSTs)
+                            if (soundtracks.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(20.dp))
+                                SoundtrackSection(tracks = soundtracks)
+                            }
+
                             // Resume button if available
                             if (lastWatchedEp != null) {
+                                val isManga = d.type?.equals("manga", ignoreCase = true) == true
+                                val resumeLabel = if (isManga) "Resume Chapter $lastWatchedEp" else "Resume Episode $lastWatchedEp"
                                 Spacer(modifier = Modifier.height(20.dp))
                                 Box(
                                     modifier = Modifier
@@ -620,7 +814,7 @@ fun AnimeDetailScreen(
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "Resume Episode $lastWatchedEp",
+                                            text = resumeLabel,
                                             color = Color.White,
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold
@@ -636,8 +830,9 @@ fun AnimeDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
+                                val isManga = d.type?.equals("manga", ignoreCase = true) == true
                                 Text(
-                                    text = "EPISODES",
+                                    text = if (isManga) "CHAPTERS" else "EPISODES",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -852,8 +1047,9 @@ fun AnimeDetailScreen(
                                     .padding(32.dp),
                                 contentAlignment = Alignment.Center
                             ) {
+                                val isManga = d.type?.equals("manga", ignoreCase = true) == true
                                 Text(
-                                    text = "No episodes available for $selectedAudioTab",
+                                    text = if (isManga) "No chapters available for $selectedAudioTab" else "No episodes available for $selectedAudioTab",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -926,11 +1122,36 @@ fun AnimeDetailScreen(
                         }
                     }
 
+                    if (communityReviews.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            CommunityReviewsSection(
+                                reviews = communityReviews,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                        }
+                    }
+
                     item {
-                        Spacer(modifier = Modifier.height(40.dp))
+                        Spacer(modifier = Modifier.height(60.dp))
                     }
                 }
             }
+        }
+
+        // Mini Music Player Bar
+        MiniMusicPlayerBar(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+        )
+
+        // Character Voice Actor Detail Dialog
+        if (selectedCharacterForDialog != null) {
+            CharacterDetailDialog(
+                character = selectedCharacterForDialog!!,
+                onDismiss = { selectedCharacterForDialog = null }
+            )
         }
     }
 }

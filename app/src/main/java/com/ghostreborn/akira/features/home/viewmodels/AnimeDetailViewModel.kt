@@ -37,6 +37,24 @@ class AnimeDetailViewModel(
                         isFavorite = fav
                     )
                 }
+
+                // Load cloud watch status asynchronously
+                if (TokenManager.isLoggedIn(context)) {
+                    val isManga = detail.type?.equals("manga", ignoreCase = true) == true
+                    val ws = com.ghostreborn.akira.features.auth.services.WatchlistSyncManager.getWatchState(
+                        context = context,
+                        showId = animeId,
+                        isManga = isManga
+                    )
+                    if (ws != null) {
+                        _uiState.update {
+                            it.copy(
+                                watchStatus = ws.userStatus,
+                                watchStateId = ws.watchStateId
+                            )
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
@@ -44,6 +62,25 @@ class AnimeDetailViewModel(
                         errorMessage = "Failed to load details: ${e.message}"
                     )
                 }
+            }
+        }
+    }
+
+    fun setWatchStatus(context: Context, newStatus: com.ghostreborn.akira.features.auth.services.WatchStatus) {
+        val stateId = _uiState.value.watchStateId ?: return
+        _uiState.update { it.copy(isUpdatingWatchStatus = true) }
+
+        viewModelScope.launch {
+            val success = com.ghostreborn.akira.features.auth.services.WatchlistSyncManager.setWatchStatus(
+                context = context,
+                watchStateId = stateId,
+                status = newStatus
+            )
+            _uiState.update {
+                it.copy(
+                    isUpdatingWatchStatus = false,
+                    watchStatus = if (success) newStatus else it.watchStatus
+                )
             }
         }
     }

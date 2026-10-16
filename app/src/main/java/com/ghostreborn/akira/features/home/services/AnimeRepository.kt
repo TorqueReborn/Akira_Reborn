@@ -359,7 +359,17 @@ class DefaultAnimeRepository(
         throwIfGraphQlErrors(json, "Failed to load anime details")
         val data = json.optJSONObject("data")
         val showMap = data?.optJSONObject("show") ?: data?.optJSONObject("anime")
-            ?: throw IllegalStateException("Anime details not found.")
+
+        if (showMap == null) {
+            // Check if this ID belongs to a manga item
+            return@withContext try {
+                val mangaDetail = ServiceLocator.mangaRepository.fetchMangaDetail(animeId, context)
+                detailCache[animeId] = mangaDetail
+                mangaDetail
+            } catch (e: Exception) {
+                throw IllegalStateException("Anime details not found.")
+            }
+        }
 
         val detail = AnimeDetail.fromJson(showMap)
         detailCache[animeId] = detail

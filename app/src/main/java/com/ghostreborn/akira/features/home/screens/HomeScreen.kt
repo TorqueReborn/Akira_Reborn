@@ -37,7 +37,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -87,7 +90,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     onNavigateToDetail: (AnimeShow) -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToWatchlist: () -> Unit = {},
+    onNavigateToSchedule: () -> Unit = {},
+    onNavigateToMusic: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -96,6 +102,7 @@ fun HomeScreen(
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var translationType by remember { mutableStateOf("sub") } // "sub" or "dub"
+    var selectedMediaType by remember { mutableStateOf("anime") } // "anime" or "manga"
 
     val categories = remember {
         listOf(
@@ -144,13 +151,22 @@ fun HomeScreen(
             try {
                 val sortBy = categories[selectedCategoryIndex].second
                 val q = searchQuery.trim().ifEmpty { null }
-                val result = AnimeRepository.fetchAnimeList(
-                    page = page,
-                    searchQuery = q,
-                    sortBy = sortBy,
-                    translationType = translationType,
-                    context = context
-                )
+                val result = if (selectedMediaType == "manga") {
+                    com.ghostreborn.akira.core.di.ServiceLocator.mangaRepository.fetchMangaList(
+                        page = page,
+                        searchQuery = q,
+                        sortBy = sortBy,
+                        context = context
+                    )
+                } else {
+                    AnimeRepository.fetchAnimeList(
+                        page = page,
+                        searchQuery = q,
+                        sortBy = sortBy,
+                        translationType = translationType,
+                        context = context
+                    )
+                }
 
                 if (page == 1) {
                     shows.clear()
@@ -331,119 +347,233 @@ fun HomeScreen(
                         }
                     }
                 } else {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(vertical = 4.dp)
                     ) {
-                        Text(
-                            text = "AKIRA",
-                            style = TextStyle(
-                                brush = AkiraLogoGradientBrush,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 4.sp
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        // Sub / Dub Pill Switcher
-                        Box(
+                        // Row 1: Brand Logo + Action Icons (Search, Watchlist, Settings)
+                        Row(
                             modifier = Modifier
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .padding(3.dp),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Sliding Gradient Background Indicator
-                            Row(modifier = Modifier.matchParentSize()) {
-                                Box(
+                            Text(
+                                text = "AKIRA",
+                                style = TextStyle(
+                                    brush = AkiraLogoGradientBrush,
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 4.sp
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            // Action Icons Row
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = { isSearchActive = true },
                                     modifier = Modifier
-                                        .fillMaxHeight()
-                                        .weight(1f)
-                                        .align(Alignment.CenterVertically),
-                                    contentAlignment = androidx.compose.ui.BiasAlignment(animatedBias, 0f)
+                                        .size(40.dp)
+                                        .shadow(2.dp, CircleShape)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surface)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxHeight()
-                                            .fillMaxWidth(0.5f)
-                                            .clip(CircleShape)
-                                            .background(AkiraLogoGradientBrush)
+                                    Icon(
+                                        imageVector = Icons.Rounded.Search,
+                                        contentDescription = "Search",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = onNavigateToWatchlist,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .shadow(2.dp, CircleShape)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Bookmark,
+                                        contentDescription = "Watchlist",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = onNavigateToSchedule,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .shadow(2.dp, CircleShape)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.CalendarToday,
+                                        contentDescription = "Airing Schedule",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = onNavigateToMusic,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .shadow(2.dp, CircleShape)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.MusicNote,
+                                        contentDescription = "Soundtracks",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = onNavigateToSettings,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .shadow(2.dp, CircleShape)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Settings,
+                                        contentDescription = "Settings",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
+                        }
 
-                            // Labels Row
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                listOf("sub" to "SUB", "dub" to "DUB").forEach { (type, label) ->
-                                    val isSelected = translationType == type
-                                    val textColor by animateColorAsState(
-                                        targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        label = "pill_text_color"
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(CircleShape)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null
-                                            ) {
-                                                if (translationType != type) {
-                                                    translationType = type
-                                                    fetchShows(1, reset = true)
-                                                }
-                                            }
-                                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = label,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = textColor
+                        // Row 2: Mode Switchers (Anime/Manga & Sub/Dub)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp, bottom = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Media Type (Anime / Manga) Pill Switcher
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .padding(3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    listOf("anime" to "ANIME", "manga" to "MANGA").forEach { (type, label) ->
+                                        val isSelected = selectedMediaType == type
+                                        val textColor by animateColorAsState(
+                                            targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            label = "media_type_text"
                                         )
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(CircleShape)
+                                                .then(
+                                                    if (isSelected) Modifier.background(AkiraLogoGradientBrush)
+                                                    else Modifier
+                                                )
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {
+                                                    if (selectedMediaType != type) {
+                                                        selectedMediaType = type
+                                                        fetchShows(1, reset = true)
+                                                    }
+                                                }
+                                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = textColor
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        Spacer(modifier = Modifier.width(10.dp))
+                            if (selectedMediaType == "anime") {
+                                Spacer(modifier = Modifier.width(10.dp))
 
-                        IconButton(
-                            onClick = { isSearchActive = true },
-                            modifier = Modifier
-                                .size(38.dp)
-                                .shadow(2.dp, CircleShape)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surface)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Search,
-                                contentDescription = "Search",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                                // Sub / Dub Pill Switcher
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .padding(3.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    // Sliding Gradient Background Indicator
+                                    Row(modifier = Modifier.matchParentSize()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .weight(1f)
+                                                .align(Alignment.CenterVertically),
+                                            contentAlignment = androidx.compose.ui.BiasAlignment(animatedBias, 0f)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxHeight()
+                                                    .fillMaxWidth(0.5f)
+                                                    .clip(CircleShape)
+                                                    .background(AkiraLogoGradientBrush)
+                                            )
+                                        }
+                                    }
 
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        IconButton(
-                            onClick = onNavigateToSettings,
-                            modifier = Modifier
-                                .size(38.dp)
-                                .shadow(2.dp, CircleShape)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surface)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Settings,
-                                contentDescription = "Settings",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(20.dp)
-                            )
+                                    // Labels Row
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        listOf("sub" to "SUB", "dub" to "DUB").forEach { (type, label) ->
+                                            val isSelected = translationType == type
+                                            val textColor by animateColorAsState(
+                                                targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                label = "pill_text_color"
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(CircleShape)
+                                                    .clickable(
+                                                        interactionSource = remember { MutableInteractionSource() },
+                                                        indication = null
+                                                    ) {
+                                                        if (translationType != type) {
+                                                            translationType = type
+                                                            fetchShows(1, reset = true)
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = label,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = textColor
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -490,8 +620,8 @@ fun HomeScreen(
                 }
             }
 
-            // Featured Banner header item
-            if (featuredShows.isNotEmpty() && !isSearchActive) {
+            // Featured Banner header item (shown for anime mode)
+            if (featuredShows.isNotEmpty() && !isSearchActive && selectedMediaType == "anime") {
                 item(
                     key = "featured_banner",
                     contentType = "banner",
@@ -597,5 +727,12 @@ fun HomeScreen(
                 }
             }
         }
+
+        // Mini Floating Music Player Bar
+        com.ghostreborn.akira.features.home.widgets.MiniMusicPlayerBar(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+        )
     }
 }

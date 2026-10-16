@@ -29,9 +29,11 @@ data class MkissaClientConfig(
     val fragments: List<ByteArray>,
     val operationHashes: Map<String, String> = mapOf(
         OperationRegistry.OP_BROWSE to OperationRegistry.DEFAULT_BROWSE_HASH,
+        OperationRegistry.OP_MANGA_BROWSE to OperationRegistry.DEFAULT_MANGA_BROWSE_HASH,
         OperationRegistry.OP_TOP_RANKED to OperationRegistry.DEFAULT_TOP_RANKED_HASH,
         OperationRegistry.OP_DETAIL to OperationRegistry.DEFAULT_DETAIL_HASH,
-        OperationRegistry.OP_EPISODE to OperationRegistry.DEFAULT_EPISODE_HASH
+        OperationRegistry.OP_EPISODE to OperationRegistry.DEFAULT_EPISODE_HASH,
+        OperationRegistry.OP_CHAPTER_PAGES to OperationRegistry.DEFAULT_CHAPTER_PAGES_HASH
     ),
     val endpoints: MkissaEndpoints = MkissaEndpoints.default(),
     val fetchedAtMs: Long
@@ -43,9 +45,11 @@ data class MkissaClientConfig(
         }
         return when (operationName) {
             OperationRegistry.OP_BROWSE -> OperationRegistry.DEFAULT_BROWSE_HASH
+            OperationRegistry.OP_MANGA_BROWSE -> OperationRegistry.DEFAULT_MANGA_BROWSE_HASH
             OperationRegistry.OP_TOP_RANKED -> OperationRegistry.DEFAULT_TOP_RANKED_HASH
             OperationRegistry.OP_DETAIL -> OperationRegistry.DEFAULT_DETAIL_HASH
             OperationRegistry.OP_EPISODE -> OperationRegistry.DEFAULT_EPISODE_HASH
+            OperationRegistry.OP_CHAPTER_PAGES -> OperationRegistry.DEFAULT_CHAPTER_PAGES_HASH
             else -> throw IllegalArgumentException("Unknown GraphQL operation: $operationName")
         }
     }
@@ -75,9 +79,11 @@ data class MkissaClientConfig(
                 fragments = DEFAULT_FRAGMENTS,
                 operationHashes = mapOf(
                     OperationRegistry.OP_BROWSE to OperationRegistry.DEFAULT_BROWSE_HASH,
+                    OperationRegistry.OP_MANGA_BROWSE to OperationRegistry.DEFAULT_MANGA_BROWSE_HASH,
                     OperationRegistry.OP_TOP_RANKED to OperationRegistry.DEFAULT_TOP_RANKED_HASH,
                     OperationRegistry.OP_DETAIL to OperationRegistry.DEFAULT_DETAIL_HASH,
-                    OperationRegistry.OP_EPISODE to OperationRegistry.DEFAULT_EPISODE_HASH
+                    OperationRegistry.OP_EPISODE to OperationRegistry.DEFAULT_EPISODE_HASH,
+                    OperationRegistry.OP_CHAPTER_PAGES to OperationRegistry.DEFAULT_CHAPTER_PAGES_HASH
                 ),
                 endpoints = MkissaEndpoints.default(),
                 fetchedAtMs = 0L
@@ -117,9 +123,11 @@ data class MkissaClientConfig(
                 }
             }
             if (!hashes.containsKey(OperationRegistry.OP_BROWSE)) hashes[OperationRegistry.OP_BROWSE] = OperationRegistry.DEFAULT_BROWSE_HASH
+            if (!hashes.containsKey(OperationRegistry.OP_MANGA_BROWSE)) hashes[OperationRegistry.OP_MANGA_BROWSE] = OperationRegistry.DEFAULT_MANGA_BROWSE_HASH
             if (!hashes.containsKey(OperationRegistry.OP_TOP_RANKED)) hashes[OperationRegistry.OP_TOP_RANKED] = OperationRegistry.DEFAULT_TOP_RANKED_HASH
             if (!hashes.containsKey(OperationRegistry.OP_DETAIL)) hashes[OperationRegistry.OP_DETAIL] = OperationRegistry.DEFAULT_DETAIL_HASH
             if (!hashes.containsKey(OperationRegistry.OP_EPISODE)) hashes[OperationRegistry.OP_EPISODE] = OperationRegistry.DEFAULT_EPISODE_HASH
+            if (!hashes.containsKey(OperationRegistry.OP_CHAPTER_PAGES)) hashes[OperationRegistry.OP_CHAPTER_PAGES] = OperationRegistry.DEFAULT_CHAPTER_PAGES_HASH
 
             val endpointsObj = json.optJSONObject("endpoints")
             val endpoints = MkissaEndpoints.fromJson(endpointsObj)

@@ -129,6 +129,44 @@ fun AkiraAppNavigation() {
                 },
                 onNavigateToSettings = {
                     navController.navigate("settings")
+                },
+                onNavigateToWatchlist = {
+                    navController.navigate("watchlist")
+                },
+                onNavigateToSchedule = {
+                    navController.navigate("schedule")
+                },
+                onNavigateToMusic = {
+                    navController.navigate("music")
+                }
+            )
+        }
+
+        composable("watchlist") {
+            com.ghostreborn.akira.features.home.screens.WatchlistScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDetail = { anime ->
+                    val encodedTitle = Uri.encode(anime.name)
+                    val encodedPoster = Uri.encode(anime.thumbnail ?: "")
+                    navController.navigate("detail/${anime.id}?title=$encodedTitle&poster=$encodedPoster")
+                }
+            )
+        }
+
+        composable("schedule") {
+            com.ghostreborn.akira.features.home.screens.ScheduleScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDetail = { showId ->
+                    navController.navigate("detail/$showId")
+                }
+            )
+        }
+
+        composable("music") {
+            com.ghostreborn.akira.features.home.screens.MusicScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDetail = { showId ->
+                    navController.navigate("detail/$showId")
                 }
             )
         }
@@ -166,6 +204,9 @@ fun AkiraAppNavigation() {
                     NavHolder.pendingTranslationType = transType
                     val encodedTitle = Uri.encode(title ?: "Anime")
                     navController.navigate("player/$animeId/$epNumber?title=$encodedTitle")
+                },
+                onReadChapter = { chapterString, transType ->
+                    navController.navigate("manga_reader/$animeId/$chapterString?transType=$transType")
                 }
             )
         }
@@ -220,6 +261,29 @@ fun AkiraAppNavigation() {
                         popUpTo("home") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(
+            route = "manga_reader/{mangaId}/{chapterString}?transType={transType}",
+            arguments = listOf(
+                navArgument("mangaId") { type = NavType.StringType },
+                navArgument("chapterString") { type = NavType.StringType },
+                navArgument("transType") {
+                    type = NavType.StringType
+                    defaultValue = "sub"
+                }
+            )
+        ) { backStackEntry ->
+            val mangaId = backStackEntry.arguments?.getString("mangaId") ?: ""
+            val chapterString = backStackEntry.arguments?.getString("chapterString") ?: "1"
+            val transType = backStackEntry.arguments?.getString("transType") ?: "sub"
+
+            com.ghostreborn.akira.features.manga.presentation.reader.MangaReaderScreen(
+                mangaId = mangaId,
+                chapterString = chapterString,
+                translationType = transType,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

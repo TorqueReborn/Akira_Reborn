@@ -130,6 +130,39 @@ fun SettingsScreen(
         }
     }
 
+    val externalListLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            isImporting = true
+            scope.launch {
+                try {
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    if (bytes != null && bytes.isNotEmpty()) {
+                        val fileName = "mal_import_${System.currentTimeMillis()}.xml"
+                        val result = com.ghostreborn.akira.features.auth.services.WatchlistSyncManager.importMyList(
+                            context = context,
+                            fileBytes = bytes,
+                            fileName = fileName,
+                            listType = "mal"
+                        )
+                        if (result.isSuccess) {
+                            Toast.makeText(context, "List import submitted! Check your Watchlist in a few moments.", Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(context, "Import failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        Toast.makeText(context, "Could not read selected file.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Import error: ${e.message}", Toast.LENGTH_LONG).show()
+                } finally {
+                    isImporting = false
+                }
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -246,6 +279,9 @@ fun SettingsScreen(
                 },
                 onImportClick = {
                     importLauncher.launch(arrayOf("application/json", "*/*"))
+                },
+                onImportExternalClick = {
+                    externalListLauncher.launch(arrayOf("text/xml", "application/xml", "application/json", "*/*"))
                 }
             )
 

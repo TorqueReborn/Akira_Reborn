@@ -5,6 +5,8 @@ import android.util.Log
 import com.ghostreborn.akira.core.config.MkissaConfigProvider
 import com.ghostreborn.akira.features.auth.models.AuthResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -147,6 +149,8 @@ mutation(
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
+    private val refreshMutex = Mutex()
+
     /**
      * Returns an access token suitable for a request. Tokens close to expiry are refreshed using
      * the same refreshTokens mutation the Mkissa website uses. A temporary network failure keeps
@@ -162,15 +166,34 @@ mutation(
             return if (TokenManager.isAccessTokenExpired(context)) null else current
         }
 
-        return try {
-            refreshTokens(context)
-        } catch (e: Exception) {
-            Log.w("AuthRepo", "Token refresh failed: ${e.message}")
-            if (TokenManager.isAccessTokenExpired(context)) {
-                TokenManager.clear(context)
-                null
-            } else {
-                current
+        return refreshMutex.withLock {
+            // Re-check under lock in case another coroutine just refreshed it
+            val tokenAfterLock = TokenManager.getAccessToken(context)
+            if (!tokenAfterLock.isNullOrBlank() && !TokenManager.isAccessTokenExpiringSoon(context, leewaySeconds = 120L)) {
+                return@withLock tokenAfterLock
+            }
+
+            try {
+                refreshTokens(context)
+            } catch (e: Exception) {
+                Log.w("AuthRepo", "Token refresh failed: ${e.message}")
+                val msg = (e.message ?: "").lowercase()
+                val isExplicitAuthRejection = msg.contains("401") ||
+                        msg.contains("403") ||
+                        msg.contains("invalid") ||
+                        msg.contains("expired") ||
+                        msg.contains("session") ||
+                        msg.contains("unauthorized")
+
+                if (isExplicitAuthRejection && TokenManager.isAccessTokenExpired(context)) {
+                    TokenManager.clear(context)
+                    null
+                } else if (!TokenManager.isAccessTokenExpired(context)) {
+                    // Still within valid lifetime despite refresh failure (e.g. temporary offline)
+                    current
+                } else {
+                    null
+                }
             }
         }
     }

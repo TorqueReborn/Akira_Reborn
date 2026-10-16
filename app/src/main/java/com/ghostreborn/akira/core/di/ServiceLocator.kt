@@ -23,6 +23,8 @@ object ServiceLocator {
     }
 
     var animeRepository: AnimeRepository = DefaultAnimeRepository(okHttpClient)
+    var mangaRepository: com.ghostreborn.akira.features.manga.data.MangaRepository =
+        com.ghostreborn.akira.features.manga.data.DefaultMangaRepository(okHttpClient, animeRepository)
 
     fun getUpdateManager(context: Context): UpdateManager {
         return UpdateManager.getInstance(context)
@@ -33,5 +35,6 @@ object ServiceLocator {
      */
     fun reset() {
         animeRepository = DefaultAnimeRepository(okHttpClient)
+        mangaRepository = com.ghostreborn.akira.features.manga.data.DefaultMangaRepository(okHttpClient, animeRepository)
     }
 }

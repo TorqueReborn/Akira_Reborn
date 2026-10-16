@@ -7,18 +7,18 @@ package com.ghostreborn.akira.core.crypto
 object SafeBase64 {
     fun decode(src: String): ByteArray {
         val clean = src.trim().replace("\n", "").replace("\r", "")
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        return try {
             java.util.Base64.getDecoder().decode(clean)
-        } else {
+        } catch (_: Throwable) {
             android.util.Base64.decode(clean, android.util.Base64.DEFAULT)
         }
     }
 
     fun encodeToString(src: ByteArray, noWrap: Boolean = true): String {
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        return try {
             val encoded = java.util.Base64.getEncoder().encodeToString(src)
             if (noWrap) encoded.replace("\n", "").replace("\r", "") else encoded
-        } else {
+        } catch (_: Throwable) {
             val flags = if (noWrap) android.util.Base64.NO_WRAP else android.util.Base64.DEFAULT
             android.util.Base64.encodeToString(src, flags)
         }
