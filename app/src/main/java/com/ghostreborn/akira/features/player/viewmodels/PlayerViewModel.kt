@@ -8,6 +8,7 @@ import com.ghostreborn.akira.features.auth.services.TokenManager
 import com.ghostreborn.akira.features.home.services.AnimeRepository
 import com.ghostreborn.akira.features.player.models.PlayerUiState
 import com.ghostreborn.akira.features.player.models.StreamSource
+import com.ghostreborn.akira.features.player.services.AniSkipService
 import com.ghostreborn.akira.features.player.services.WatchHistoryManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,13 +56,42 @@ class PlayerViewModel(
         }
     }
 
+    fun setSkipIntervals(intervals: List<com.ghostreborn.akira.features.player.models.SkipInterval>) {
+        _uiState.update { it.copy(skipIntervals = intervals) }
+    }
+
+    fun loadSkipTimes(title: String, episodeNumber: String, explicitMalId: Long? = null, durationMs: Long = 0L) {
+        val epNum = episodeNumber.toDoubleOrNull() ?: return
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("PlayerViewModel", "loadSkipTimes for '$title' ep $epNum (explicitMalId: $explicitMalId)")
+                val malId = explicitMalId ?: AniSkipService.resolveMalIdFromTitle(title)
+                android.util.Log.d("PlayerViewModel", "Resolved MAL ID: $malId for '$title'")
+                if (malId != null && malId > 0) {
+                    val epLenSec = if (durationMs > 0) durationMs / 1000L else 1440L
+                    val intervals = AniSkipService.getSkipTimes(
+                        malId = malId,
+                        episodeNumber = epNum,
+                        episodeLengthSeconds = epLenSec
+                    )
+                    android.util.Log.d("PlayerViewModel", "Found ${intervals.size} skip intervals from AniSkip")
+                    setSkipIntervals(intervals)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PlayerViewModel", "Error loading skip times: ${e.message}")
+            }
+        }
+    }
+
     fun updatePlaybackProgress(currentPositionMs: Long, durationMs: Long, bufferedPercentage: Int, isPlaying: Boolean) {
-        _uiState.update {
-            it.copy(
+        _uiState.update { state ->
+            val active = state.skipIntervals.firstOrNull { it.contains(currentPositionMs) }
+            state.copy(
                 currentPositionMs = currentPositionMs,
                 durationMs = durationMs,
                 bufferedPercentage = bufferedPercentage,
-                isPlaying = isPlaying
+                isPlaying = isPlaying,
+                activeSkipInterval = active
             )
         }
     }

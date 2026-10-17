@@ -31,16 +31,8 @@ import com.ghostreborn.akira.features.player.screens.PlayerScreen
 import com.ghostreborn.akira.features.settings.screens.SettingsScreen
 import com.ghostreborn.akira.features.updater.services.UpdateManager
 import com.ghostreborn.akira.features.updater.widgets.UpdateDialog
+import com.ghostreborn.akira.features.player.services.PlayerSessionManager
 import com.ghostreborn.akira.ui.theme.AkiraTheme
-
-@Deprecated("Transient state holder for legacy navigation. Migration to ViewModel state in progress.")
-object NavHolder {
-    var pendingSources: List<StreamSource> = emptyList()
-    var pendingInitialPositionMs: Long = 0L
-    var pendingThumbnail: String? = null
-    var pendingEpisodes: List<String> = emptyList()
-    var pendingTranslationType: String = "sub"
-}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -196,12 +188,17 @@ fun AkiraAppNavigation() {
                 titleHint = title,
                 posterHint = poster,
                 onNavigateBack = { navController.popBackStack() },
-                onPlayEpisode = { epNumber, sources, startMs, epList, transType ->
-                    NavHolder.pendingSources = sources
-                    NavHolder.pendingInitialPositionMs = startMs
-                    NavHolder.pendingThumbnail = poster
-                    NavHolder.pendingEpisodes = epList
-                    NavHolder.pendingTranslationType = transType
+                onPlayEpisode = { epNumber, sources, startMs, epList, transType, malId ->
+                    PlayerSessionManager.setSession(
+                        showId = animeId,
+                        episodeNumber = epNumber,
+                        sources = sources,
+                        initialPositionMs = startMs,
+                        thumbnail = poster,
+                        episodes = epList,
+                        translationType = transType,
+                        malId = malId
+                    )
                     val encodedTitle = Uri.encode(title ?: "Anime")
                     navController.navigate("player/$animeId/$epNumber?title=$encodedTitle")
                 },
@@ -226,11 +223,12 @@ fun AkiraAppNavigation() {
             val animeId = backStackEntry.arguments?.getString("animeId") ?: ""
             val episodeNumber = backStackEntry.arguments?.getString("episodeNumber") ?: "1"
             val title = backStackEntry.arguments?.getString("title")?.let { Uri.decode(it) } ?: "Anime"
-            val sources = NavHolder.pendingSources
-            val initialMs = NavHolder.pendingInitialPositionMs
-            val thumb = NavHolder.pendingThumbnail
-            val episodes = NavHolder.pendingEpisodes
-            val translationType = NavHolder.pendingTranslationType
+            val sources = PlayerSessionManager.getSources(animeId, episodeNumber)
+            val initialMs = PlayerSessionManager.getInitialPositionMs(animeId, episodeNumber)
+            val thumb = PlayerSessionManager.getThumbnail(animeId, episodeNumber)
+            val episodes = PlayerSessionManager.getEpisodes(animeId, episodeNumber)
+            val translationType = PlayerSessionManager.getTranslationType(animeId, episodeNumber)
+            val malId = PlayerSessionManager.getMalId(animeId, episodeNumber)
 
             PlayerScreen(
                 animeId = animeId,
@@ -241,10 +239,19 @@ fun AkiraAppNavigation() {
                 initialPositionMs = initialMs,
                 episodes = episodes,
                 translationType = translationType,
+                malId = malId,
                 onNavigateBack = { navController.popBackStack() },
                 onChangeEpisode = { nextEp, nextSources ->
-                    NavHolder.pendingSources = nextSources
-                    NavHolder.pendingInitialPositionMs = 0L
+                    PlayerSessionManager.setSession(
+                        showId = animeId,
+                        episodeNumber = nextEp,
+                        sources = nextSources,
+                        initialPositionMs = 0L,
+                        thumbnail = thumb,
+                        episodes = episodes,
+                        translationType = translationType,
+                        malId = malId
+                    )
                     val encodedTitle = Uri.encode(title)
                     navController.navigate("player/$animeId/$nextEp?title=$encodedTitle") {
                         popUpTo("player/$animeId/$episodeNumber?title=$encodedTitle") { inclusive = true }

@@ -107,7 +107,7 @@ fun AnimeDetailScreen(
     titleHint: String? = null,
     posterHint: String? = null,
     onNavigateBack: () -> Unit,
-    onPlayEpisode: (String, List<StreamSource>, Long, List<String>, String) -> Unit,
+    onPlayEpisode: (String, List<StreamSource>, Long, List<String>, String, Long?) -> Unit,
     onReadChapter: ((String, String) -> Unit)? = null,
     viewModel: AnimeDetailViewModel = viewModel()
 ) {
@@ -242,7 +242,7 @@ fun AnimeDetailScreen(
             episodeString = epStr,
             translationType = currentAudioTab,
             onSuccess = { streams ->
-                onPlayEpisode(epStr, streams, startMs, episodes, currentAudioTab)
+                onPlayEpisode(epStr, streams, startMs, episodes, currentAudioTab, uiState.animeDetail?.malId)
             },
             onError = { msg ->
                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()

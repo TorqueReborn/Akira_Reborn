@@ -19,7 +19,9 @@ data class PlayerUiState(
     val isControlsVisible: Boolean = true,
     val isQualityPickerOpen: Boolean = false,
     val isEpisodeDrawerOpen: Boolean = false,
-    val isFetchingEpisode: Boolean = false
+    val isFetchingEpisode: Boolean = false,
+    val skipIntervals: List<SkipInterval> = emptyList(),
+    val activeSkipInterval: SkipInterval? = null
 ) {
     val currentSource: StreamSource?
         get() = sources.getOrNull(selectedSourceIndex)

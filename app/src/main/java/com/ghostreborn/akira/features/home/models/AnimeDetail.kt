@@ -208,7 +208,9 @@ data class AnimeDetail(
     val lastEpisodeSub: String? = null,
     val lastEpisodeDub: String? = null,
     val episodesDetail: AnimeEpisodeDetail = AnimeEpisodeDetail(),
-    val characters: List<AnimeCharacter> = emptyList()
+    val characters: List<AnimeCharacter> = emptyList(),
+    val malId: Long? = null,
+    val aniListId: Long? = null
 ) {
     companion object {
         fun fromJson(json: JSONObject): AnimeDetail {
@@ -218,6 +220,30 @@ data class AnimeDetail(
                 json.has("title") -> json.optString("title")
                 else -> "Unknown"
             }
+            fun extractId(vararg keys: String): Long? {
+                val objects = listOfNotNull(
+                    json,
+                    json.optJSONObject("linkedProviderIds"),
+                    json.optJSONObject("externalIds"),
+                    json.optJSONObject("mappings"),
+                    json.optJSONObject("providerIds")
+                )
+                for (obj in objects) {
+                    for (k in keys) {
+                        if (obj.has(k) && !obj.isNull(k)) {
+                            val num = obj.optLong(k, 0L)
+                            if (num > 0) return num
+                            val str = obj.optString(k, "").trim()
+                            val parsed = str.toLongOrNull()
+                            if (parsed != null && parsed > 0) return parsed
+                        }
+                    }
+                }
+                return null
+            }
+
+            val parsedMalId = extractId("malId", "mal", "myanimelist", "idMal")
+            val parsedAniListId = extractId("aniListId", "anilistId", "anilist", "idAniList")
             val englishName = json.optString("englishName").takeIf { it.isNotBlank() }
             val nativeName = json.optString("nativeName").takeIf { it.isNotBlank() }
 
@@ -338,7 +364,9 @@ data class AnimeDetail(
                 lastEpisodeSub = lastEpisodeSub,
                 lastEpisodeDub = lastEpisodeDub,
                 episodesDetail = episodesDetail,
-                characters = charList
+                characters = charList,
+                malId = parsedMalId,
+                aniListId = parsedAniListId
             )
         }
     }

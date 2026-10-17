@@ -104,7 +104,13 @@ import com.ghostreborn.akira.features.player.models.StreamSource
 import com.ghostreborn.akira.features.player.services.PlaybackFallbackPolicy
 import com.ghostreborn.akira.features.player.services.VideoCacheManager
 import com.ghostreborn.akira.features.player.viewmodels.PlayerViewModel
+import com.ghostreborn.akira.features.player.widgets.DoubleTapSeekOverlay
 import com.ghostreborn.akira.features.player.widgets.EpisodeDrawer
+import com.ghostreborn.akira.features.player.widgets.FastForwardBanner
+import com.ghostreborn.akira.features.player.widgets.GestureLevelHud
+import com.ghostreborn.akira.features.player.widgets.PlayerScrubberBar
+import com.ghostreborn.akira.features.player.widgets.PlayerTopBar
+import com.ghostreborn.akira.features.player.widgets.SkipSegmentButton
 import com.ghostreborn.akira.features.player.widgets.SourceQualityPicker
 import com.ghostreborn.akira.features.player.widgets.VideoSurface
 import com.ghostreborn.akira.ui.components.AkiraLogoGradientBrush
@@ -123,6 +129,7 @@ fun PlayerScreen(
     initialPositionMs: Long = 0L,
     episodes: List<String> = emptyList(),
     translationType: String = "sub",
+    malId: Long? = null,
     onNavigateBack: () -> Unit,
     onChangeEpisode: ((String, List<StreamSource>) -> Unit)? = null,
     viewModel: PlayerViewModel = viewModel()
@@ -182,6 +189,11 @@ fun PlayerScreen(
             initialPositionMs = initialPositionMs,
             episodes = episodes,
             translationType = translationType
+        )
+        viewModel.loadSkipTimes(
+            title = animeTitle,
+            episodeNumber = episodeNumber,
+            explicitMalId = malId
         )
     }
 
@@ -470,6 +482,12 @@ fun PlayerScreen(
                 val duration = exoPlayer.duration.coerceAtLeast(0L)
                 currentPositionMs = position
                 totalDurationMs = duration
+                viewModel.updatePlaybackProgress(
+                    currentPositionMs = position,
+                    durationMs = duration,
+                    bufferedPercentage = exoPlayer.bufferedPercentage,
+                    isPlaying = exoPlayer.isPlaying
+                )
 
                 val now = SystemClock.elapsedRealtime()
                 if (position > 0L && duration > 0L && now - lastSavedAtMs >= 5_000L) {
@@ -574,32 +592,10 @@ fun PlayerScreen(
     ) {
         VideoSurface(exoPlayer = exoPlayer, resizeMode = resizeMode)
 
-        // Hold-to-2x speed indicator banner
-        AnimatedVisibility(
+        FastForwardBanner(
             visible = isFastForwarding2x,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(top = 16.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(Color(0xCC000000))
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Rounded.FastForward,
-                        contentDescription = null,
-                        tint = AkiraPrimary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "2X Speed", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
 
         // Double Tap Seek Ripple Overlays
         LaunchedEffect(doubleTapSeekLeft) {
@@ -615,78 +611,29 @@ fun PlayerScreen(
             }
         }
 
-        AnimatedVisibility(
+        DoubleTapSeekOverlay(
+            isSeekLeft = true,
             visible = doubleTapSeekLeft,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut(),
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .padding(start = 60.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(76.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x99000000)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(imageVector = Icons.Rounded.Replay10, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
-                    Text(text = "-10s", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
+        )
 
-        AnimatedVisibility(
+        DoubleTapSeekOverlay(
+            isSeekLeft = false,
             visible = doubleTapSeekRight,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut(),
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 60.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(76.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x99000000)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(imageVector = Icons.Rounded.Forward10, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
-                    Text(text = "+10s", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
+        )
 
         // Swipe HUD (Volume & Brightness)
-        if (showGestureIndicator != null) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xCC111019))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = if (showGestureIndicator == "VOLUME") Icons.AutoMirrored.Rounded.VolumeUp else Icons.Rounded.BrightnessMedium,
-                        contentDescription = null,
-                        tint = AkiraPrimary,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(modifier = Modifier.width(14.dp))
-                    val pct = if (showGestureIndicator == "VOLUME") (volumeLevel * 100).toInt() else (brightnessLevel * 100).toInt()
-                    Text(
-                        text = "${showGestureIndicator?.lowercase()?.replaceFirstChar { it.uppercase() }}: $pct%",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
+        GestureLevelHud(
+            indicatorType = showGestureIndicator,
+            volumeLevel = volumeLevel,
+            brightnessLevel = brightnessLevel,
+            modifier = Modifier.align(Alignment.Center)
+        )
 
         // Loading spinner
         if (isLoading || uiState.isFetchingEpisode) {
@@ -782,109 +729,23 @@ fun PlayerScreen(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 // Top Bar
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color(0xDD000000), Color.Transparent)
-                            )
-                        )
-                        .statusBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = onNavigateBack,
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(Color(0x66000000))
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
-                            )
+                PlayerTopBar(
+                    title = uiState.title,
+                    episodeNumber = uiState.episodeNumber,
+                    translationType = uiState.translationType,
+                    onNavigateBack = onNavigateBack,
+                    onToggleResizeMode = {
+                        resizeMode = if (resizeMode == AspectRatioFrameLayout.RESIZE_MODE_FIT) {
+                            AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        } else {
+                            AspectRatioFrameLayout.RESIZE_MODE_FIT
                         }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = uiState.title,
-                                color = Color.White,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
-                            )
-                            Text(
-                                text = "Episode ${uiState.episodeNumber} • ${uiState.translationType.uppercase()}",
-                                color = Color(0xFFCBD5E1),
-                                fontSize = 12.sp
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-                                resizeMode = if (resizeMode == AspectRatioFrameLayout.RESIZE_MODE_FIT) {
-                                    AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                } else {
-                                    AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                }
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.AspectRatio,
-                                contentDescription = "Toggle Fit/Zoom",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { showSpeedDialog = true },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Speed,
-                                contentDescription = "Speed",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        if (uiState.sources.size > 1) {
-                            IconButton(
-                                onClick = { viewModel.setQualityPickerOpen(true) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Dns,
-                                    contentDescription = "Servers",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        if (uiState.episodes.isNotEmpty() && onChangeEpisode != null) {
-                            IconButton(
-                                onClick = { viewModel.setEpisodeDrawerOpen(true) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.VideoLibrary,
-                                    contentDescription = "Episodes",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-                }
+                    },
+                    onOpenSpeedDialog = { showSpeedDialog = true },
+                    onOpenSourcePicker = { viewModel.setQualityPickerOpen(true) },
+                    onOpenEpisodeDrawer = { viewModel.setEpisodeDrawerOpen(true) },
+                    modifier = Modifier.align(Alignment.TopStart)
+                )
 
                 // Centered Play / Pause & Skip Controls
                 Box(
@@ -998,169 +859,33 @@ fun PlayerScreen(
                     }
                 }
 
-                // Skip Intro (+85s) Floating Pill
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 24.dp, bottom = 72.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xDD121020))
-                        .border(1.2.dp, AkiraLogoGradientBrush, CircleShape)
-                        .clickable {
-                            val pos = (exoPlayer.currentPosition + 85000).coerceAtMost(totalDurationMs)
-                            exoPlayer.seekTo(pos)
-                            currentPositionMs = pos
-                        }
-                        .padding(horizontal = 14.dp, vertical = 7.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Rounded.FastForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Skip Intro (+85s)", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
+                // Skip Intro / Outro Pill
+                SkipSegmentButton(
+                    activeInterval = uiState.activeSkipInterval,
+                    onSkip = { targetPos ->
+                        exoPlayer.seekTo(targetPos)
+                        currentPositionMs = targetPos
+                    },
+                    currentPositionMs = currentPositionMs,
+                    totalDurationMs = totalDurationMs,
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                )
 
                 // Bottom Scrubber Bar & Timers
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, Color(0xF0080610))
-                            )
-                        )
-                        .navigationBarsPadding()
-                        .padding(horizontal = 24.dp, vertical = 14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0x55000000))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = formatDuration(currentPositionMs),
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        val progressFraction = remember(currentPositionMs, totalDurationMs) {
-                            if (totalDurationMs > 0) (currentPositionMs.toFloat() / totalDurationMs).coerceIn(0f, 1f) else 0f
-                        }
-
-                        val bufferedFraction = remember(bufferedPositionMs, totalDurationMs) {
-                            if (totalDurationMs > 0) (bufferedPositionMs.toFloat() / totalDurationMs).coerceIn(0f, 1f) else 0f
-                        }
-
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(36.dp)
-                                .pointerInput(totalDurationMs) {
-                                    detectTapGestures { offset ->
-                                        val frac = (offset.x / size.width).coerceIn(0f, 1f)
-                                        val newPos = (frac * totalDurationMs).toLong()
-                                        currentPositionMs = newPos
-                                        exoPlayer.seekTo(newPos)
-                                    }
-                                }
-                                .pointerInput(totalDurationMs) {
-                                    detectHorizontalDragGestures(
-                                        onDragStart = { offset ->
-                                            isSeeking = true
-                                            val frac = (offset.x / size.width).coerceIn(0f, 1f)
-                                            currentPositionMs = (frac * totalDurationMs).toLong()
-                                        },
-                                        onDragEnd = {
-                                            isSeeking = false
-                                            exoPlayer.seekTo(currentPositionMs)
-                                        },
-                                        onDragCancel = { isSeeking = false },
-                                        onHorizontalDrag = { change, _ ->
-                                            change.consume()
-                                            val frac = (change.position.x / size.width).coerceIn(0f, 1f)
-                                            currentPositionMs = (frac * totalDurationMs).toLong()
-                                        }
-                                    )
-                                },
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            val trackWidth = maxWidth
-                            val activeWidth = trackWidth * progressFraction
-                            val bufferedWidth = trackWidth * bufferedFraction
-
-                            // 1. Background full track
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(5.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0x35FFFFFF))
-                            )
-
-                            // 2. Buffered progress track
-                            Box(
-                                modifier = Modifier
-                                    .width(bufferedWidth)
-                                    .height(5.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0x80FFFFFF))
-                            )
-
-                            // 3. Played active progress track
-                            Box(
-                                modifier = Modifier
-                                    .width(activeWidth)
-                                    .height(5.dp)
-                                    .clip(CircleShape)
-                                    .background(AkiraLogoGradientBrush)
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .padding(start = (activeWidth - 8.dp).coerceAtLeast(0.dp))
-                                    .size(18.dp)
-                                    .shadow(10.dp, CircleShape, spotColor = AkiraPrimary)
-                                    .clip(CircleShape)
-                                    .background(AkiraLogoGradientBrush)
-                                    .padding(3.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(CircleShape)
-                                        .background(Color.White)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0x55000000))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = formatDuration(totalDurationMs),
-                                color = Color(0xFFCBD5E1),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
+                PlayerScrubberBar(
+                    currentPositionMs = currentPositionMs,
+                    bufferedPositionMs = bufferedPositionMs,
+                    totalDurationMs = totalDurationMs,
+                    onSeekStart = { isSeeking = true },
+                    onSeekProgress = { newPos: Long -> currentPositionMs = newPos },
+                    onSeekComplete = { newPos: Long ->
+                        isSeeking = false
+                        currentPositionMs = newPos
+                        exoPlayer.seekTo(newPos)
+                    },
+                    formatDuration = ::formatDuration,
+                    modifier = Modifier.align(Alignment.BottomStart)
+                )
             }
         }
 
