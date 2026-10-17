@@ -40,6 +40,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
@@ -93,7 +94,8 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToWatchlist: () -> Unit = {},
     onNavigateToSchedule: () -> Unit = {},
-    onNavigateToMusic: () -> Unit = {}
+    onNavigateToMusic: () -> Unit = {},
+    onNavigateToDownloads: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -435,6 +437,22 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = Icons.Rounded.MusicNote,
                                         contentDescription = "Soundtracks",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = onNavigateToDownloads,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .shadow(2.dp, CircleShape)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Download,
+                                        contentDescription = "Downloads",
                                         tint = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.size(20.dp)
                                     )

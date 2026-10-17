@@ -305,11 +305,17 @@ fun PlayerScreen(
         isLoading = true
         viewModel.setError(null)
 
-        val mediaItemBuilder = MediaItem.Builder().setUri(Uri.parse(source.url))
+        val mediaUri = if (source.url.startsWith("/") || source.url.startsWith("file://")) {
+            Uri.fromFile(java.io.File(source.url.removePrefix("file://")))
+        } else {
+            Uri.parse(source.url)
+        }
+
+        val mediaItemBuilder = MediaItem.Builder().setUri(mediaUri)
         when {
             source.isHls || source.fileExtension.equals("m3u8", ignoreCase = true) ->
                 mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)
-            source.fileExtension.equals("mp4", ignoreCase = true) ->
+            source.fileExtension.equals("mp4", ignoreCase = true) || source.url.endsWith(".mp4", ignoreCase = true) ->
                 mediaItemBuilder.setMimeType(MimeTypes.VIDEO_MP4)
         }
 

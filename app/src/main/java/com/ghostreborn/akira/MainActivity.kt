@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         TokenManager.init(this)
+        com.ghostreborn.akira.features.downloads.services.EpisodeDownloadManager.init(this)
         com.ghostreborn.akira.features.home.services.AnimeRepository.loadContentPreferences(this)
         val updateManager = UpdateManager.getInstance(this)
         updateManager.checkForUpdates(isManual = false)
@@ -130,6 +131,9 @@ fun AkiraAppNavigation() {
                 },
                 onNavigateToMusic = {
                     navController.navigate("music")
+                },
+                onNavigateToDownloads = {
+                    navController.navigate("downloads")
                 }
             )
         }
@@ -267,6 +271,32 @@ fun AkiraAppNavigation() {
                     navController.navigate("login") {
                         popUpTo("home") { inclusive = true }
                     }
+                }
+            )
+        }
+
+        composable("downloads") {
+            com.ghostreborn.akira.features.downloads.screens.DownloadsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onPlayOffline = { downloadedEp ->
+                    val localSource = com.ghostreborn.akira.features.player.models.StreamSource(
+                        sourceName = "Offline (${downloadedEp.quality})",
+                        url = downloadedEp.videoPath,
+                        isDirect = true,
+                        priority = 100.0,
+                        fileExtension = "mp4"
+                    )
+                    PlayerSessionManager.setSession(
+                        showId = downloadedEp.animeId,
+                        episodeNumber = downloadedEp.episodeNumber,
+                        sources = listOf(localSource),
+                        initialPositionMs = 0L,
+                        thumbnail = downloadedEp.thumbnail,
+                        episodes = listOf(downloadedEp.episodeNumber),
+                        translationType = "sub"
+                    )
+                    val encodedTitle = Uri.encode(downloadedEp.animeTitle)
+                    navController.navigate("player/${downloadedEp.animeId}/${downloadedEp.episodeNumber}?title=$encodedTitle")
                 }
             )
         }

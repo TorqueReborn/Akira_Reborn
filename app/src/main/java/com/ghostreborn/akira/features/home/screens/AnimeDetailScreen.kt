@@ -11,9 +11,11 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -86,6 +88,8 @@ import coil.request.ImageRequest
 import com.ghostreborn.akira.features.home.viewmodels.AnimeDetailViewModel
 import com.ghostreborn.akira.features.player.models.StreamSource
 import com.ghostreborn.akira.features.player.services.WatchHistoryManager
+import com.ghostreborn.akira.features.downloads.models.DownloadStatus
+import com.ghostreborn.akira.features.downloads.services.EpisodeDownloadManager
 import com.ghostreborn.akira.features.home.models.AnimeCharacter
 import com.ghostreborn.akira.features.home.models.CommunityReview
 import com.ghostreborn.akira.features.home.models.MusicTrack
@@ -100,7 +104,7 @@ import com.ghostreborn.akira.ui.theme.AkiraPrimary
 import com.ghostreborn.akira.utils.ImageUtils
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun AnimeDetailScreen(
     animeId: String,
@@ -128,6 +132,11 @@ fun AnimeDetailScreen(
     val soundtracks = remember { androidx.compose.runtime.mutableStateListOf<MusicTrack>() }
     val communityReviews = remember { androidx.compose.runtime.mutableStateListOf<CommunityReview>() }
     var selectedCharacterForDialog by remember { mutableStateOf<AnimeCharacter?>(null) }
+
+    val downloadsMap by EpisodeDownloadManager.downloads.collectAsState()
+    var episodeToDownloadDialog by remember { mutableStateOf<String?>(null) }
+    var downloadStreamsCandidate by remember { mutableStateOf<List<StreamSource>>(emptyList()) }
+    var isFetchingForDownload by remember { mutableStateOf(false) }
 
     LaunchedEffect(animeId) {
         viewModel.loadAnimeDetail(context, animeId)
@@ -235,6 +244,21 @@ fun AnimeDetailScreen(
             onReadChapter(epStr, selectedAudioTab.lowercase())
             return
         }
+
+        // Check if episode has already been downloaded for offline playback
+        val downloaded = EpisodeDownloadManager.getDownloadedEpisode(animeId, epStr)
+        if (downloaded != null) {
+            val localSource = StreamSource(
+                sourceName = "Offline (${downloaded.quality})",
+                url = downloaded.videoPath,
+                isDirect = true,
+                priority = 100.0,
+                fileExtension = "mp4"
+            )
+            onPlayEpisode(epStr, listOf(localSource), startMs, episodes, selectedAudioTab.lowercase(), uiState.animeDetail?.malId)
+            return
+        }
+
         if (uiState.isFetchingStreams) return
         val currentAudioTab = selectedAudioTab.lowercase()
         viewModel.fetchEpisodeStreams(
@@ -1070,6 +1094,11 @@ fun AnimeDetailScreen(
                                 rowEps.forEach { epStr ->
                                     val isCurrentLoading = uiState.isFetchingStreams && uiState.selectedEpisodeNumber == epStr
                                     val isLastWatched = lastWatchedEp == epStr
+                                    val dlKey = "$animeId:$epStr"
+                                    val dlRecord = downloadsMap[dlKey]
+                                    val isDownloaded = dlRecord?.status == DownloadStatus.COMPLETED
+                                    val isDownloading = dlRecord?.status == DownloadStatus.DOWNLOADING
+
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
@@ -1081,12 +1110,37 @@ fun AnimeDetailScreen(
                                                     isLastWatched -> Modifier
                                                         .background(MaterialTheme.colorScheme.surface)
                                                         .border(1.5.dp, AkiraLogoGradientBrush, RoundedCornerShape(12.dp))
+                                                    isDownloaded -> Modifier
+                                                        .background(MaterialTheme.colorScheme.surface)
+                                                        .border(1.2.dp, AkiraPrimary, RoundedCornerShape(12.dp))
                                                     else -> Modifier
                                                         .background(MaterialTheme.colorScheme.surface)
                                                         .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
                                                 }
                                             )
-                                            .clickable(enabled = !uiState.isFetchingStreams) { playEpisode(epStr) },
+                                            .combinedClickable(
+                                                enabled = !uiState.isFetchingStreams,
+                                                onClick = { playEpisode(epStr) },
+                                                onLongClick = {
+                                                    if (!isDownloaded && !isDownloading) {
+                                                        episodeToDownloadDialog = epStr
+                                                        isFetchingForDownload = true
+                                                        viewModel.fetchEpisodeStreams(
+                                                            context = context,
+                                                            episodeString = epStr,
+                                                            translationType = selectedAudioTab.lowercase(),
+                                                            onSuccess = { s ->
+                                                                downloadStreamsCandidate = s
+                                                                isFetchingForDownload = false
+                                                            },
+                                                            onError = { msg ->
+                                                                isFetchingForDownload = false
+                                                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            ),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (isCurrentLoading) {
@@ -1102,6 +1156,26 @@ fun AnimeDetailScreen(
                                                 fontWeight = if (isLastWatched) FontWeight.ExtraBold else FontWeight.Bold,
                                                 fontSize = 13.sp
                                             )
+                                            if (isDownloaded) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .align(Alignment.TopEnd)
+                                                        .padding(4.dp)
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(AkiraPrimary)
+                                                )
+                                            } else if (isDownloading) {
+                                                CircularProgressIndicator(
+                                                    progress = { dlRecord?.progress ?: 0f },
+                                                    modifier = Modifier
+                                                        .align(Alignment.TopEnd)
+                                                        .padding(4.dp)
+                                                        .size(8.dp),
+                                                    strokeWidth = 1.5.dp,
+                                                    color = AkiraPrimary
+                                                )
+                                            }
                                             if (isLastWatched) {
                                                 Box(
                                                     modifier = Modifier
@@ -1151,6 +1225,34 @@ fun AnimeDetailScreen(
             CharacterDetailDialog(
                 character = selectedCharacterForDialog!!,
                 onDismiss = { selectedCharacterForDialog = null }
+            )
+        }
+
+        // Episode Download Dialog
+        if (episodeToDownloadDialog != null) {
+            com.ghostreborn.akira.features.downloads.widgets.EpisodeDownloadDialog(
+                episodeNumber = episodeToDownloadDialog!!,
+                animeTitle = uiState.animeDetail?.name ?: "Anime",
+                streams = downloadStreamsCandidate,
+                isLoading = isFetchingForDownload,
+                onDismiss = {
+                    episodeToDownloadDialog = null
+                    downloadStreamsCandidate = emptyList()
+                },
+                onSelectStream = { source, quality ->
+                    EpisodeDownloadManager.enqueueDownload(
+                        context = context,
+                        animeId = animeId,
+                        episodeNumber = episodeToDownloadDialog!!,
+                        animeTitle = uiState.animeDetail?.name ?: "Anime",
+                        downloadUrl = source.url,
+                        thumbnail = uiState.animeDetail?.thumbnail,
+                        quality = quality
+                    )
+                    Toast.makeText(context, "Download started for Episode ${episodeToDownloadDialog!!}", Toast.LENGTH_SHORT).show()
+                    episodeToDownloadDialog = null
+                    downloadStreamsCandidate = emptyList()
+                }
             )
         }
     }
