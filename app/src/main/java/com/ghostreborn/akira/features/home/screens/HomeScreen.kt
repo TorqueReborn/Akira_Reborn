@@ -90,6 +90,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
+    initialSearch: String? = null,
     onNavigateToDetail: (AnimeShow) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToWatchlist: () -> Unit = {},
@@ -101,8 +102,8 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState()
 
-    var searchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf(initialSearch ?: "") }
+    var isSearchActive by remember { mutableStateOf(!initialSearch.isNullOrBlank()) }
     var translationType by remember { mutableStateOf("sub") } // "sub" or "dub"
     var selectedMediaType by remember { mutableStateOf("anime") } // "anime" or "manga"
 

@@ -113,8 +113,19 @@ fun AkiraAppNavigation() {
             )
         }
 
-        composable("home") {
+        composable(
+            route = "home?query={query}",
+            arguments = listOf(
+                navArgument("query") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val queryArg = backStackEntry.arguments?.getString("query")?.let { Uri.decode(it) }
             HomeScreen(
+                initialSearch = queryArg,
                 onNavigateToDetail = { anime ->
                     val encodedTitle = Uri.encode(anime.name)
                     val encodedPoster = Uri.encode(anime.thumbnail ?: "")
@@ -208,6 +219,12 @@ fun AkiraAppNavigation() {
                 },
                 onReadChapter = { chapterString, transType ->
                     navController.navigate("manga_reader/$animeId/$chapterString?transType=$transType")
+                },
+                onFilterByGenre = { query ->
+                    val encodedQuery = Uri.encode(query)
+                    navController.navigate("home?query=$encodedQuery") {
+                        popUpTo("home") { inclusive = true }
+                    }
                 }
             )
         }

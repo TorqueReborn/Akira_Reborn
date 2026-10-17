@@ -113,6 +113,7 @@ fun AnimeDetailScreen(
     onNavigateBack: () -> Unit,
     onPlayEpisode: (String, List<StreamSource>, Long, List<String>, String, Long?) -> Unit,
     onReadChapter: ((String, String) -> Unit)? = null,
+    onFilterByGenre: ((String) -> Unit)? = null,
     viewModel: AnimeDetailViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -502,6 +503,17 @@ fun AnimeDetailScreen(
                                             .clip(RoundedCornerShape(8.dp))
                                             .background(Color(0xFF3B2D14))
                                             .border(1.dp, Color(0xFFF59E0B), RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                val malUrl = if (d.malId != null && d.malId > 0) {
+                                                    "https://myanimelist.net/anime/${d.malId}"
+                                                } else {
+                                                    "https://myanimelist.net/anime.php?q=${android.net.Uri.encode(d.name)}"
+                                                }
+                                                try {
+                                                    val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(malUrl))
+                                                    context.startActivity(browserIntent)
+                                                } catch (_: Exception) {}
+                                            }
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -527,6 +539,7 @@ fun AnimeDetailScreen(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
                                             .background(MaterialTheme.colorScheme.primaryContainer)
+                                            .clickable { onFilterByGenre?.invoke(d.type) }
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
                                         Text(
@@ -543,6 +556,7 @@ fun AnimeDetailScreen(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
                                             .background(MaterialTheme.colorScheme.surfaceVariant)
+                                            .clickable { onFilterByGenre?.invoke(d.status) }
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
                                         Text(
@@ -623,6 +637,7 @@ fun AnimeDetailScreen(
                                                 .clip(RoundedCornerShape(12.dp))
                                                 .background(MaterialTheme.colorScheme.surface)
                                                 .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
+                                                .clickable { onFilterByGenre?.invoke(genre) }
                                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                                         ) {
                                             Text(
