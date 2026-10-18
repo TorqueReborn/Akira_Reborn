@@ -96,10 +96,16 @@ import com.ghostreborn.akira.features.home.models.CommunityReview
 import com.ghostreborn.akira.features.home.models.MusicTrack
 import com.ghostreborn.akira.features.home.services.MusicRepository
 import com.ghostreborn.akira.features.home.services.ReviewRepository
+import com.ghostreborn.akira.features.home.services.UserRemarksManager
 import com.ghostreborn.akira.features.home.widgets.MiniMusicPlayerBar
+import com.ghostreborn.akira.features.home.widgets.detail.AnimeCharactersSection
+import com.ghostreborn.akira.features.home.widgets.detail.AnimeDetailHeroHeader
+import com.ghostreborn.akira.features.home.widgets.detail.AnimeMetadataSection
 import com.ghostreborn.akira.features.home.widgets.detail.CharacterDetailDialog
 import com.ghostreborn.akira.features.home.widgets.detail.CommunityReviewsSection
+import com.ghostreborn.akira.features.home.widgets.detail.EpisodeControlsRow
 import com.ghostreborn.akira.features.home.widgets.detail.SoundtrackSection
+import com.ghostreborn.akira.features.home.widgets.detail.WatchOrderGuidesSection
 import com.ghostreborn.akira.ui.components.AkiraLogoGradientBrush
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
 import com.ghostreborn.akira.utils.ImageUtils
@@ -307,828 +313,199 @@ fun AnimeDetailScreen(
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     // Hero Banner with Poster Card
                     item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(300.dp)
-                        ) {
-                            // Backdrop Banner
-                            if (!bannerUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data(bannerUrl)
-                                        .apply { ImageUtils.imageHeaders.forEach { (k, v) -> addHeader(k, v) } }
-                                        .memoryCachePolicy(CachePolicy.ENABLED)
-                                        .diskCachePolicy(CachePolicy.ENABLED)
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = title,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                )
+                        AnimeDetailHeroHeader(
+                            animeId = animeId,
+                            title = title,
+                            safeNativeName = safeNativeName,
+                            posterUrl = posterUrl,
+                            bannerUrl = bannerUrl,
+                            isFavorite = uiState.isFavorite,
+                            onNavigateBack = onNavigateBack,
+                            onToggleFavorite = {
+                                viewModel.toggleFavorite(context)
+                                Toast.makeText(
+                                    context,
+                                    if (!uiState.isFavorite) "Added to Favorites" else "Removed from Favorites",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
+                        )
+                    }
 
-                            // Gradient fading into background
+                    // Metadata, Genres, Synopsis, Notes, Characters, Soundtracks, Guides
+                    item {
+                        AnimeMetadataSection(
+                            animeDetail = d,
+                            watchStateId = uiState.watchStateId,
+                            watchStatus = uiState.watchStatus,
+                            guides = uiState.guides,
+                            worldMaps = uiState.worldMaps,
+                            userRemarks = userRemarks,
+                            isRemarksEditing = isRemarksEditing,
+                            isSynopsisExpanded = isSynopsisExpanded,
+                            onToggleSynopsis = { isSynopsisExpanded = !isSynopsisExpanded },
+                            onRemarksChange = { userRemarks = it },
+                            onSaveRemarks = {
+                                UserRemarksManager.saveRemarks(context, animeId, userRemarks)
+                                Toast.makeText(context, "Note saved!", Toast.LENGTH_SHORT).show()
+                            },
+                            onToggleRemarksEditing = { isRemarksEditing = !isRemarksEditing },
+                            onSetWatchStatus = { status ->
+                                viewModel.setWatchStatus(context, status)
+                                Toast.makeText(context, "Set to ${status.label}", Toast.LENGTH_SHORT).show()
+                            },
+                            onFilterByGenre = onFilterByGenre,
+                            onOpenGuide = onOpenGuide,
+                            onOpenMap = onOpenMap
+                        )
+
+                        // Characters & Cast Carousel
+                        AnimeCharactersSection(
+                            characters = d.characters,
+                            onSelectCharacter = { selectedCharacterForDialog = it },
+                            modifier = Modifier.padding(horizontal = 20.dp)
+                        )
+
+                        // Soundtracks (OPs / EDs / OSTs)
+                        if (soundtracks.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            SoundtrackSection(
+                                tracks = soundtracks,
+                                modifier = Modifier.padding(horizontal = 20.dp)
+                            )
+                        }
+
+                        // Watch Order Maps & Guides
+                        Spacer(modifier = Modifier.height(20.dp))
+                        WatchOrderGuidesSection(
+                            guides = uiState.guides,
+                            worldMaps = uiState.worldMaps,
+                            isLoading = uiState.isLoadingGuides,
+                            onOpenGuide = { guide ->
+                                onOpenGuide?.invoke(guide.id, guide.title)
+                            },
+                            onOpenMap = { map ->
+                                onOpenMap?.invoke(map.id, map.title)
+                            },
+                            modifier = Modifier.padding(horizontal = 20.dp)
+                        )
+
+                        // Resume button if available
+                        if (lastWatchedEp != null) {
+                            val isManga = d.type?.equals("manga", ignoreCase = true) == true
+                            val resumeLabel = if (isManga) "Resume Chapter $lastWatchedEp" else "Resume Episode $lastWatchedEp"
+                            Spacer(modifier = Modifier.height(20.dp))
                             Box(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            0.0f to Color(0x99000000),
-                                            0.4f to Color(0x33000000),
-                                            0.8f to MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
-                                            1.0f to MaterialTheme.colorScheme.background
-                                        )
-                                    )
-                            )
-
-                            // Top Floating Action Bar (Back, Share, Bookmark/Favorite)
-                            Row(
-                                modifier = Modifier
                                     .fillMaxWidth()
-                                    .statusBarsPadding()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(horizontal = 20.dp)
+                                    .shadow(6.dp, RoundedCornerShape(16.dp))
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(AkiraLogoGradientBrush)
+                                    .clickable { playEpisode(lastWatchedEp!!, lastProgressMs) }
+                                    .padding(vertical = 14.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                IconButton(
-                                    onClick = onNavigateBack,
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0x80000000))
-                                ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                        contentDescription = "Back",
+                                        imageVector = Icons.Rounded.PlayArrow,
+                                        contentDescription = null,
                                         tint = Color.White
                                     )
-                                }
-
-                                Spacer(modifier = Modifier.weight(1f))
-
-                                // Share Button
-                                IconButton(
-                                    onClick = {
-                                        val sendIntent = Intent().apply {
-                                            action = Intent.ACTION_SEND
-                                            putExtra(
-                                                Intent.EXTRA_TEXT,
-                                                "Check out $title on Akira!\nhttps://akira.moe/anime/$animeId"
-                                            )
-                                            type = "text/plain"
-                                        }
-                                        val shareIntent = Intent.createChooser(sendIntent, "Share $title")
-                                        context.startActivity(shareIntent)
-                                    },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0x80000000))
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Share,
-                                        contentDescription = "Share",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(19.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(10.dp))
-
-                                // Favorite / Bookmark Button
-                                IconButton(
-                                    onClick = {
-                                        viewModel.toggleFavorite(context)
-                                        Toast.makeText(
-                                            context,
-                                            if (!uiState.isFavorite) "Added to Favorites" else "Removed from Favorites",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (uiState.isFavorite) AkiraLogoGradientBrush
-                                            else Brush.linearGradient(listOf(Color(0x80000000), Color(0x80000000)))
-                                        )
-                                ) {
-                                    Icon(
-                                        imageVector = if (uiState.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                        contentDescription = "Favorite",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-
-                            // Poster thumbnail card + title banner row at the bottom of hero
-                            Row(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.Bottom
-                            ) {
-                                val cardShape = RoundedCornerShape(14.dp)
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 96.dp, height = 138.dp)
-                                        .shadow(8.dp, cardShape)
-                                        .clip(cardShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .border(1.dp, Color.White.copy(alpha = 0.3f), cardShape)
-                                ) {
-                                    if (!posterUrl.isNullOrBlank()) {
-                                        AsyncImage(
-                                            model = ImageRequest.Builder(context)
-                                                .data(posterUrl)
-                                                .apply { ImageUtils.imageHeaders.forEach { (k, v) -> addHeader(k, v) } }
-                                                .memoryCachePolicy(CachePolicy.ENABLED)
-                                                .diskCachePolicy(CachePolicy.ENABLED)
-                                                .crossfade(true)
-                                                .build(),
-                                            contentDescription = title,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.width(14.dp))
-
-                                Column(modifier = Modifier.weight(1f)) {
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = title,
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 3,
-                                        overflow = TextOverflow.Ellipsis
+                                        text = resumeLabel,
+                                        color = Color.White,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
-
-                                    if (safeNativeName != null) {
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = safeNativeName,
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
                                 }
                             }
                         }
-                    }
 
-                    // Metadata, Genres, Synopsis, Cast, Episodes
-                    item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 6.dp)
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Audio Selector & Controls Row (Sort order, Episode Search, and SUB/DUB/RAW)
+                        val isManga = d.type?.equals("manga", ignoreCase = true) == true
+                        EpisodeControlsRow(
+                            isManga = isManga,
+                            isAscending = isAscending,
+                            isSearchOpen = isSearchEpisodeOpen,
+                            selectedAudioTab = selectedAudioTab,
+                            onToggleAscending = { isAscending = !isAscending },
+                            onToggleSearch = {
+                                isSearchEpisodeOpen = !isSearchEpisodeOpen
+                                if (!isSearchEpisodeOpen) episodeSearchQuery = ""
+                            },
+                            onSelectAudioTab = { selectedAudioTab = it },
+                            modifier = Modifier.padding(horizontal = 20.dp)
+                        )
+
+                        // Collapsible Episode Search Bar
+                        AnimatedVisibility(
+                            visible = isSearchEpisodeOpen,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically(),
+                            modifier = Modifier.padding(horizontal = 20.dp)
                         ) {
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            // Metadata Pills Row
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                if (d.score != null && d.score > 0) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color(0xFF3B2D14))
-                                            .border(1.dp, Color(0xFFF59E0B), RoundedCornerShape(8.dp))
-                                            .clickable {
-                                                val malUrl = if (d.malId != null && d.malId > 0) {
-                                                    "https://myanimelist.net/anime/${d.malId}"
-                                                } else {
-                                                    "https://myanimelist.net/anime.php?q=${android.net.Uri.encode(d.name)}"
-                                                }
-                                                try {
-                                                    val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(malUrl))
-                                                    context.startActivity(browserIntent)
-                                                } catch (_: Exception) {}
-                                            }
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.Star,
-                                                contentDescription = null,
-                                                tint = Color(0xFFF59E0B),
-                                                modifier = Modifier.size(13.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(3.dp))
-                                            Text(
-                                                text = String.format(java.util.Locale.US, "%.1f", d.score),
-                                                color = Color(0xFFFDE68A),
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                }
-
-                                if (d.type != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(MaterialTheme.colorScheme.primaryContainer)
-                                            .clickable { onFilterByGenre?.invoke(d.type) }
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
+                            Column {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                OutlinedTextField(
+                                    value = episodeSearchQuery,
+                                    onValueChange = { episodeSearchQuery = it },
+                                    placeholder = {
                                         Text(
-                                            text = d.type.uppercase(),
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-
-                                if (d.status != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                                            .clickable { onFilterByGenre?.invoke(d.status) }
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Text(
-                                            text = d.status.uppercase(),
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-
-                                // Cloud Watchlist Status Selector Pill
-                                if (uiState.watchStateId != null) {
-                                    var isDropdownOpen by remember { mutableStateOf(false) }
-                                    Box {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(
-                                                    if (uiState.watchStatus != null) MaterialTheme.colorScheme.primaryContainer
-                                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-                                                )
-                                                .clickable { isDropdownOpen = true }
-                                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = uiState.watchStatus?.label ?: "Add to Watchlist",
-                                                    color = if (uiState.watchStatus != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Icon(
-                                                    imageVector = Icons.Rounded.ArrowDropDown,
-                                                    contentDescription = null,
-                                                    tint = if (uiState.watchStatus != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                            }
-                                        }
-
-                                        DropdownMenu(
-                                            expanded = isDropdownOpen,
-                                            onDismissRequest = { isDropdownOpen = false }
-                                        ) {
-                                            com.ghostreborn.akira.features.auth.services.WatchStatus.entries.forEach { statusOption ->
-                                                DropdownMenuItem(
-                                                    text = {
-                                                        Text(
-                                                            text = statusOption.label,
-                                                            fontWeight = if (uiState.watchStatus == statusOption) FontWeight.Bold else FontWeight.Normal,
-                                                            color = if (uiState.watchStatus == statusOption) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                                        )
-                                                    },
-                                                    onClick = {
-                                                        isDropdownOpen = false
-                                                        viewModel.setWatchStatus(context, statusOption)
-                                                        Toast.makeText(context, "Set to ${statusOption.label}", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Quick Guide & Map Pill Button
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(AkiraLogoGradientBrush)
-                                        .clickable {
-                                            val firstGuide = uiState.guides.firstOrNull()
-                                            val firstMap = uiState.worldMaps.firstOrNull()
-                                            if (firstMap != null) {
-                                                onOpenMap?.invoke(firstMap.id, firstMap.title)
-                                            } else if (firstGuide != null) {
-                                                onOpenGuide?.invoke(firstGuide.id, firstGuide.title)
-                                            } else {
-                                                // Fall back to opening franchise guide with title
-                                                onOpenGuide?.invoke("franchise_guide_${d.id}", "${d.englishName ?: d.name}: Watch Order")
-                                            }
-                                        }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Map,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "GUIDES & MAPS",
-                                            color = Color.White,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Genres
-                            if (d.genres.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    d.genres.forEach { genre ->
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(MaterialTheme.colorScheme.surface)
-                                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-                                                .clickable { onFilterByGenre?.invoke(genre) }
-                                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                                        ) {
-                                            Text(
-                                                text = genre,
-                                                fontSize = 12.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Synopsis with Expand / Collapse
-                            if (!d.description.isNullOrBlank()) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Column {
-                                    Text(
-                                        text = d.description,
-                                        fontSize = 14.sp,
-                                        lineHeight = 20.sp,
-                                        maxLines = if (isSynopsisExpanded) Int.MAX_VALUE else 3,
-                                        overflow = TextOverflow.Ellipsis,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = if (isSynopsisExpanded) "Show Less" else "Read More",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = AkiraPrimary,
-                                        modifier = Modifier
-                                            .clickable { isSynopsisExpanded = !isSynopsisExpanded }
-                                            .padding(vertical = 2.dp)
-                                    )
-                                }
-                            }
-
-                            // Personal Notes / Remarks Section
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(MaterialTheme.colorScheme.surface)
-                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
-                                    .padding(14.dp)
-                            ) {
-                                Column {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text(
-                                            text = "PERSONAL NOTES / REMARKS",
-                                            style = TextStyle(
-                                                brush = AkiraLogoGradientBrush,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                letterSpacing = 1.2.sp
-                                            )
-                                        )
-                                        Spacer(modifier = Modifier.weight(1f))
-                                        Text(
-                                            text = if (isRemarksEditing) "Done" else if (userRemarks.isBlank()) "+ Add Note" else "Edit",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = AkiraPrimary,
-                                            modifier = Modifier
-                                                .clickable {
-                                                    if (isRemarksEditing) {
-                                                        com.ghostreborn.akira.features.home.services.UserRemarksManager.saveRemarks(context, animeId, userRemarks)
-                                                        Toast.makeText(context, "Note saved!", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                    isRemarksEditing = !isRemarksEditing
-                                                }
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
-
-                                    if (isRemarksEditing) {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        OutlinedTextField(
-                                            value = userRemarks,
-                                            onValueChange = { userRemarks = it },
-                                            placeholder = { Text("Add private remarks or thoughts on this title...", fontSize = 12.sp) },
-                                            colors = OutlinedTextFieldDefaults.colors(
-                                                focusedBorderColor = AkiraPrimary,
-                                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                                            ),
-                                            shape = RoundedCornerShape(10.dp),
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                    } else if (userRemarks.isNotBlank()) {
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Text(
-                                            text = userRemarks,
-                                            fontSize = 13.sp,
-                                            lineHeight = 18.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    } else {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "No private remarks yet. Tap '+ Add Note' to write personal notes.",
+                                            text = "Jump to episode number (e.g. 1042)...",
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                         )
-                                    }
-                                }
-                            }
-
-                            // Characters & Cast Carousel
-                            if (d.characters.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(20.dp))
-                                Text(
-                                    text = "CHARACTERS & CAST",
-                                    style = TextStyle(
-                                        brush = AkiraLogoGradientBrush,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        letterSpacing = 1.5.sp
-                                    ),
-                                    modifier = Modifier.padding(bottom = 10.dp)
-                                )
-                                LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    items(d.characters) { character ->
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            modifier = Modifier
-                                                .width(72.dp)
-                                                .clickable { selectedCharacterForDialog = character }
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(62.dp)
-                                                    .clip(CircleShape)
-                                                    .border(1.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape)
-                                                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                if (!character.image.isNullOrBlank()) {
-                                                    AsyncImage(
-                                                        model = ImageRequest.Builder(context)
-                                                            .data(character.image)
-                                                            .apply {
-                                                                ImageUtils.imageHeaders.forEach { (k, v) -> addHeader(k, v) }
-                                                            }
-                                                            .memoryCachePolicy(CachePolicy.ENABLED)
-                                                            .diskCachePolicy(CachePolicy.ENABLED)
-                                                            .crossfade(true)
-                                                            .build(),
-                                                        contentDescription = character.name,
-                                                        contentScale = ContentScale.Crop,
-                                                        modifier = Modifier.fillMaxSize()
-                                                    )
-                                                }
-                                            }
-                                            Spacer(modifier = Modifier.height(6.dp))
-                                            Text(
-                                                text = character.name,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            if (!character.actorName.isNullOrBlank()) {
-                                                Text(
-                                                    text = character.actorName,
-                                                    fontSize = 10.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Soundtracks (OPs / EDs / OSTs)
-                            if (soundtracks.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(20.dp))
-                                SoundtrackSection(tracks = soundtracks)
-                            }
-
-                            // Watch Order Maps & Guides
-                            Spacer(modifier = Modifier.height(20.dp))
-                            com.ghostreborn.akira.features.home.widgets.detail.WatchOrderGuidesSection(
-                                guides = uiState.guides,
-                                worldMaps = uiState.worldMaps,
-                                isLoading = uiState.isLoadingGuides,
-                                onOpenGuide = { guide ->
-                                    onOpenGuide?.invoke(guide.id, guide.title)
-                                },
-                                onOpenMap = { map ->
-                                    onOpenMap?.invoke(map.id, map.title)
-                                }
-                            )
-
-                            // Resume button if available
-                            if (lastWatchedEp != null) {
-                                val isManga = d.type?.equals("manga", ignoreCase = true) == true
-                                val resumeLabel = if (isManga) "Resume Chapter $lastWatchedEp" else "Resume Episode $lastWatchedEp"
-                                Spacer(modifier = Modifier.height(20.dp))
-                                Box(
+                                    },
+                                    singleLine = true,
+                                    shape = CircleShape,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .shadow(6.dp, RoundedCornerShape(16.dp))
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(AkiraLogoGradientBrush)
-                                        .clickable { playEpisode(lastWatchedEp!!, lastProgressMs) }
-                                        .padding(vertical = 14.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.PlayArrow,
-                                            contentDescription = null,
-                                            tint = Color.White
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = resumeLabel,
-                                            color = Color.White,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(24.dp))
-
-                            // Audio Selector & Controls Row (Sort order, Episode Search, and SUB/DUB/RAW)
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                val isManga = d.type?.equals("manga", ignoreCase = true) == true
-                                Text(
-                                    text = if (isManga) "CHAPTERS" else "EPISODES",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-
-                                Spacer(modifier = Modifier.width(10.dp))
-
-                                // Sort Order Toggle (1 -> N vs N -> 1)
-                                Box(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .clickable { isAscending = !isAscending }
-                                        .padding(horizontal = 9.dp, vertical = 5.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.SwapVert,
-                                            contentDescription = "Sort order",
-                                            tint = AkiraPrimary,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Text(
-                                            text = if (isAscending) "Oldest" else "Newest",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                // Episode Quick Search Toggle
-                                Box(
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isSearchEpisodeOpen) AkiraLogoGradientBrush
-                                            else Brush.linearGradient(
-                                                listOf(
-                                                    MaterialTheme.colorScheme.surfaceVariant,
-                                                    MaterialTheme.colorScheme.surfaceVariant
-                                                )
-                                            )
-                                        )
-                                        .clickable {
-                                            isSearchEpisodeOpen = !isSearchEpisodeOpen
-                                            if (!isSearchEpisodeOpen) episodeSearchQuery = ""
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Search,
-                                        contentDescription = "Find episode",
-                                        tint = if (isSearchEpisodeOpen) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(16.dp)
+                                        .height(48.dp)
+                                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        focusedBorderColor = Color.Transparent,
+                                        unfocusedBorderColor = Color.Transparent,
+                                        cursorColor = AkiraPrimary
                                     )
-                                }
-
-                                Spacer(modifier = Modifier.weight(1f))
-
-                                val audioTabs = listOf("SUB", "DUB", "RAW")
-                                val tabIndex = audioTabs.indexOf(selectedAudioTab).coerceAtLeast(0)
-                                val animatedAudioBias by animateFloatAsState(
-                                    targetValue = when (tabIndex) {
-                                        0 -> -1f
-                                        1 -> 0f
-                                        else -> 1f
-                                    },
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                        stiffness = Spring.StiffnessMedium
-                                    ),
-                                    label = "audio_tab_bias"
                                 )
-
-                                Box(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .padding(3.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    // Sliding Gradient Background Indicator
-                                    Row(modifier = Modifier.matchParentSize()) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxHeight()
-                                                .weight(1f)
-                                                .align(Alignment.CenterVertically),
-                                            contentAlignment = BiasAlignment(animatedAudioBias, 0f)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxHeight()
-                                                    .fillMaxWidth(0.333f)
-                                                .clip(CircleShape)
-                                                .background(AkiraLogoGradientBrush)
-                                            )
-                                        }
-                                    }
-
-                                    // Labels Row
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        audioTabs.forEach { tab ->
-                                            val isSelected = selectedAudioTab == tab
-                                            val textColor by animateColorAsState(
-                                                targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                label = "audio_tab_text"
-                                            )
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(CircleShape)
-                                                    .clickable(
-                                                        interactionSource = remember { MutableInteractionSource() },
-                                                        indication = null
-                                                    ) { selectedAudioTab = tab }
-                                                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    text = tab,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = textColor
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
                             }
+                        }
 
-                            // Collapsible Episode Search Bar
-                            AnimatedVisibility(
-                                visible = isSearchEpisodeOpen,
-                                enter = fadeIn() + expandVertically(),
-                                exit = fadeOut() + shrinkVertically()
-                            ) {
-                                Column {
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    OutlinedTextField(
-                                        value = episodeSearchQuery,
-                                        onValueChange = { episodeSearchQuery = it },
-                                        placeholder = {
-                                            Text(
-                                                text = "Jump to episode number (e.g. 1042)...",
-                                                fontSize = 12.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                            )
-                                        },
-                                        singleLine = true,
-                                        shape = CircleShape,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp)
-                                            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                            focusedBorderColor = Color.Transparent,
-                                            unfocusedBorderColor = Color.Transparent,
-                                            cursorColor = AkiraPrimary
-                                        )
-                                    )
-                                }
-                            }
-
+                        // Range selector chips (1-100, 101-200, ...) for anime with many episodes
+                        if (episodeRanges.isNotEmpty() && episodeSearchQuery.isBlank()) {
                             Spacer(modifier = Modifier.height(14.dp))
-
-                            // Range selector chips (1-100, 101-200, ...) for anime with many episodes
-                            if (episodeRanges.isNotEmpty() && episodeSearchQuery.isBlank()) {
-                                LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    itemsIndexed(episodeRanges) { index, rangeLabel ->
-                                        val isSelected = selectedRangeIndex == index
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .then(
-                                                    if (isSelected) Modifier.background(AkiraLogoGradientBrush)
-                                                    else Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
-                                                )
-                                                .clickable { selectedRangeIndex = index }
-                                                .padding(horizontal = 14.dp, vertical = 7.dp)
-                                        ) {
-                                            Text(
-                                                text = rangeLabel,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                fontSize = 12.sp
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp)
+                            ) {
+                                itemsIndexed(episodeRanges) { index, rangeLabel ->
+                                    val isSelected = selectedRangeIndex == index
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .then(
+                                                if (isSelected) Modifier.background(AkiraLogoGradientBrush)
+                                                else Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
                                             )
-                                        }
+                                            .clickable { selectedRangeIndex = index }
+                                            .padding(horizontal = 14.dp, vertical = 7.dp)
+                                    ) {
+                                        Text(
+                                            text = rangeLabel,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 12.sp
+                                        )
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(12.dp))
                             }
                         }
                     }

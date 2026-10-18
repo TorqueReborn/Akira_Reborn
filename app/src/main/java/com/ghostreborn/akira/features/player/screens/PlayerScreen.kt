@@ -104,10 +104,14 @@ import com.ghostreborn.akira.features.player.models.StreamSource
 import com.ghostreborn.akira.features.player.services.PlaybackFallbackPolicy
 import com.ghostreborn.akira.features.player.services.VideoCacheManager
 import com.ghostreborn.akira.features.player.viewmodels.PlayerViewModel
+import com.ghostreborn.akira.features.player.widgets.CenterPlaybackControls
 import com.ghostreborn.akira.features.player.widgets.DoubleTapSeekOverlay
 import com.ghostreborn.akira.features.player.widgets.EpisodeDrawer
 import com.ghostreborn.akira.features.player.widgets.FastForwardBanner
 import com.ghostreborn.akira.features.player.widgets.GestureLevelHud
+import com.ghostreborn.akira.features.player.widgets.PlaybackSpeedDialog
+import com.ghostreborn.akira.features.player.widgets.PlayerErrorBanner
+import com.ghostreborn.akira.features.player.widgets.PlayerLockButton
 import com.ghostreborn.akira.features.player.widgets.PlayerScrubberBar
 import com.ghostreborn.akira.features.player.widgets.PlayerTopBar
 import com.ghostreborn.akira.features.player.widgets.SkipSegmentButton
@@ -654,76 +658,25 @@ fun PlayerScreen(
 
         // Error banner
         if (uiState.errorMessage != null) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xCC0F0C1B))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
-                    .padding(24.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = uiState.errorMessage ?: "",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Row {
-                        Text(
-                            text = "Retry Stream",
-                            color = AkiraPrimary,
-                            fontWeight = FontWeight.ExtraBold,
-                            modifier = Modifier
-                                .clickable {
-                                    latestFailedSourceIndices.clear()
-                                    viewModel.setError(null)
-                                    playCurrentSource(currentPositionMs)
-                                }
-                                .padding(8.dp)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(
-                            text = "Go Back",
-                            color = Color(0xFFCBD5E1),
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .clickable { onNavigateBack() }
-                                .padding(8.dp)
-                        )
-                    }
-                }
-            }
+            PlayerErrorBanner(
+                errorMessage = uiState.errorMessage ?: "",
+                onRetry = {
+                    latestFailedSourceIndices.clear()
+                    viewModel.setError(null)
+                    playCurrentSource(currentPositionMs)
+                },
+                onNavigateBack = onNavigateBack,
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
 
         // Lock Toggle Button
         if (uiState.isControlsVisible) {
-            val lockModifier = if (isLocked) {
-                Modifier.background(AkiraLogoGradientBrush)
-            } else {
-                Modifier
-                    .background(Color(0x99110E1C))
-                    .border(1.dp, Color(0x33FFFFFF), CircleShape)
-            }
-
-            IconButton(
-                onClick = { isLocked = !isLocked },
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 24.dp)
-                    .size(40.dp)
-                    .shadow(if (isLocked) 8.dp else 0.dp, CircleShape, spotColor = AkiraPrimary)
-                    .clip(CircleShape)
-                    .then(lockModifier)
-            ) {
-                Icon(
-                    imageVector = if (isLocked) Icons.Rounded.Lock else Icons.Rounded.LockOpen,
-                    contentDescription = "Lock Screen",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            PlayerLockButton(
+                isLocked = isLocked,
+                onToggleLock = { isLocked = !isLocked },
+                modifier = Modifier.align(Alignment.CenterStart)
+            )
         }
 
         // Full Controls Overlay
@@ -754,116 +707,41 @@ fun PlayerScreen(
                 )
 
                 // Centered Play / Pause & Skip Controls
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        if (hasPrevEpisode && prevEpisodeNumber != null) {
-                            IconButton(
-                                onClick = {
-                                    viewModel.fetchNextEpisodeStreams(context, prevEpisodeNumber) { newStreams ->
-                                        onChangeEpisode?.invoke(prevEpisodeNumber, newStreams)
-                                    }
-                                },
-                                modifier = Modifier.size(44.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.SkipPrevious,
-                                    contentDescription = "Prev Episode",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
-                                )
+                CenterPlaybackControls(
+                    isPlaying = isPlaying,
+                    hasPrevEpisode = hasPrevEpisode,
+                    prevEpisodeNumber = prevEpisodeNumber,
+                    hasNextEpisode = hasNextEpisode,
+                    nextEpisodeNumber = nextEpisodeNumber,
+                    onPlayPauseToggle = {
+                        if (isPlaying) exoPlayer.pause() else exoPlayer.play()
+                    },
+                    onRewind10s = {
+                        val pos = (exoPlayer.currentPosition - 10000).coerceAtLeast(0L)
+                        exoPlayer.seekTo(pos)
+                        currentPositionMs = pos
+                    },
+                    onForward10s = {
+                        val pos = (exoPlayer.currentPosition + 10000).coerceAtMost(totalDurationMs)
+                        exoPlayer.seekTo(pos)
+                        currentPositionMs = pos
+                    },
+                    onPrevEpisode = {
+                        if (prevEpisodeNumber != null) {
+                            viewModel.fetchNextEpisodeStreams(context, prevEpisodeNumber) { newStreams ->
+                                onChangeEpisode?.invoke(prevEpisodeNumber, newStreams)
                             }
-                        } else if (hasNextEpisode && nextEpisodeNumber != null) {
-                            Spacer(modifier = Modifier.size(44.dp))
                         }
-
-                        Spacer(modifier = Modifier.width(18.dp))
-
-                        IconButton(
-                            onClick = {
-                                val pos = (exoPlayer.currentPosition - 10000).coerceAtLeast(0L)
-                                exoPlayer.seekTo(pos)
-                                currentPositionMs = pos
-                            },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Replay10,
-                                contentDescription = "Rewind 10s",
-                                tint = Color.White,
-                                modifier = Modifier.size(34.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(28.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .shadow(12.dp, CircleShape, spotColor = AkiraPrimary)
-                                .clip(CircleShape)
-                                .background(AkiraLogoGradientBrush)
-                                .clickable {
-                                    if (isPlaying) exoPlayer.pause() else exoPlayer.play()
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = Color.White,
-                                modifier = Modifier.size(34.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(28.dp))
-
-                        IconButton(
-                            onClick = {
-                                val pos = (exoPlayer.currentPosition + 10000).coerceAtMost(totalDurationMs)
-                                exoPlayer.seekTo(pos)
-                                currentPositionMs = pos
-                            },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Forward10,
-                                contentDescription = "Fast Forward 10s",
-                                tint = Color.White,
-                                modifier = Modifier.size(34.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(18.dp))
-
-                        if (hasNextEpisode && nextEpisodeNumber != null) {
-                            IconButton(
-                                onClick = {
-                                    viewModel.fetchNextEpisodeStreams(context, nextEpisodeNumber) { newStreams ->
-                                        onChangeEpisode?.invoke(nextEpisodeNumber, newStreams)
-                                    }
-                                },
-                                modifier = Modifier.size(44.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.SkipNext,
-                                    contentDescription = "Next Episode",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
-                                )
+                    },
+                    onNextEpisode = {
+                        if (nextEpisodeNumber != null) {
+                            viewModel.fetchNextEpisodeStreams(context, nextEpisodeNumber) { newStreams ->
+                                onChangeEpisode?.invoke(nextEpisodeNumber, newStreams)
                             }
-                        } else if (hasPrevEpisode && prevEpisodeNumber != null) {
-                            Spacer(modifier = Modifier.size(44.dp))
                         }
-                    }
-                }
+                    },
+                    modifier = Modifier.align(Alignment.Center)
+                )
 
                 // Skip Intro / Outro Pill
                 SkipSegmentButton(
@@ -897,52 +775,16 @@ fun PlayerScreen(
 
         // Speed Modal Sheet
         if (showSpeedDialog) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0x80000000))
-                    .clickable { showSpeedDialog = false },
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(Color(0xFF1E1B2E))
-                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
-                        .padding(20.dp)
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "Playback Speed", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            speedOptions.forEach { spd ->
-                                val isSelected = currentSpeed == spd
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .then(
-                                            if (isSelected) Modifier.background(AkiraLogoGradientBrush)
-                                            else Modifier.background(Color(0x22FFFFFF))
-                                        )
-                                        .clickable {
-                                            currentSpeed = spd
-                                            exoPlayer.playbackParameters = PlaybackParameters(spd)
-                                            showSpeedDialog = false
-                                        }
-                                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                                ) {
-                                    Text(
-                                        text = "${spd}x",
-                                        color = if (isSelected) Color.White else Color(0xFFCBD5E1),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            PlaybackSpeedDialog(
+                speedOptions = speedOptions,
+                currentSpeed = currentSpeed,
+                onSelectSpeed = { spd ->
+                    currentSpeed = spd
+                    exoPlayer.playbackParameters = PlaybackParameters(spd)
+                    showSpeedDialog = false
+                },
+                onDismiss = { showSpeedDialog = false }
+            )
         }
 
         // Quality / Server Picker Dialog

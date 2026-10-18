@@ -80,6 +80,8 @@ import com.ghostreborn.akira.features.home.services.FavoritesManager
 import com.ghostreborn.akira.features.home.widgets.AnimeCard
 import com.ghostreborn.akira.features.home.widgets.FavoritesRowSection
 import com.ghostreborn.akira.features.home.widgets.FeaturedAnimeBanner
+import com.ghostreborn.akira.features.home.widgets.HomeFilterStrip
+import com.ghostreborn.akira.features.home.widgets.HomeTopAppBar
 import com.ghostreborn.akira.features.home.widgets.MiniMusicPlayerBar
 import com.ghostreborn.akira.ui.components.AkiraLogoGradientBrush
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
@@ -277,223 +279,34 @@ fun HomeScreen(
                 contentType = "header",
                 span = { GridItemSpan(2) }
             ) {
-                if (isSearchActive) {
-                    val searchInteractionSource = remember { MutableInteractionSource() }
-                    val isSearchFocused by searchInteractionSource.collectIsFocusedAsState()
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Min)
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = {
-                                searchQuery = it
-                                searchJob?.cancel()
-                                searchJob = scope.launch {
-                                    delay(400L)
-                                    fetchShows(1, reset = true)
-                                }
-                            },
-                            placeholder = {
-                                Text(
-                                    "Search anime, characters, studios...",
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Rounded.Search,
-                                    contentDescription = null,
-                                    tint = if (isSearchFocused) AkiraPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
-                            singleLine = true,
-                            interactionSource = searchInteractionSource,
-                            shape = CircleShape,
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(searchFocusRequester)
-                                .shadow(if (isSearchFocused) 6.dp else 2.dp, CircleShape, spotColor = AkiraPrimary)
-                                .then(
-                                    if (isSearchFocused) Modifier.border(1.8.dp, AkiraLogoGradientBrush, CircleShape)
-                                    else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape)
-                                ),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                focusedBorderColor = Color.Transparent,
-                                unfocusedBorderColor = Color.Transparent,
-                                cursorColor = AkiraPrimary
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.width(10.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .aspectRatio(1f)
-                                .shadow(if (isSearchFocused) 4.dp else 2.dp, CircleShape, spotColor = AkiraPrimary)
-                                .clip(CircleShape)
-                                .background(AkiraLogoGradientBrush)
-                                .clickable {
-                                    isSearchActive = false
-                                    searchQuery = ""
-                                    fetchShows(1, reset = true)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Close,
-                                contentDescription = "Close Search",
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
+                HomeTopAppBar(
+                    isSearchActive = isSearchActive,
+                    searchQuery = searchQuery,
+                    selectedMediaType = selectedMediaType,
+                    animatedMediaBias = animatedMediaBias,
+                    searchFocusRequester = searchFocusRequester,
+                    onSearchQueryChange = { newQuery ->
+                        searchQuery = newQuery
+                        searchJob?.cancel()
+                        searchJob = scope.launch {
+                            delay(400L)
+                            fetchShows(1, reset = true)
                         }
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "AKIRA",
-                            style = TextStyle(
-                                brush = AkiraLogoGradientBrush,
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 3.sp
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Media Type (Anime / Manga) Floating Segmented Pill matching bottom navigation bar
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                                tonalElevation = 4.dp,
-                                modifier = Modifier.shadow(4.dp, CircleShape, spotColor = AkiraPrimary.copy(alpha = 0.2f))
-                            ) {
-                                Box(
-                                    modifier = Modifier.padding(3.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    // Sliding Gradient Pill Indicator
-                                    Row(modifier = Modifier.matchParentSize()) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxHeight()
-                                                .weight(1f)
-                                                .align(Alignment.CenterVertically),
-                                            contentAlignment = BiasAlignment(animatedMediaBias, 0f)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxHeight()
-                                                    .fillMaxWidth(0.5f)
-                                                    .clip(CircleShape)
-                                                    .background(AkiraLogoGradientBrush)
-                                            )
-                                        }
-                                    }
-
-                                    // Interactive Labels & Icons Row
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        val mediaTypes = listOf(
-                                            Triple("anime", "Anime", Icons.Rounded.Tv),
-                                            Triple("manga", "Manga", Icons.Rounded.AutoStories)
-                                        )
-                                        mediaTypes.forEach { (type, label, icon) ->
-                                            val isSelected = selectedMediaType == type
-                                            val contentColor by animateColorAsState(
-                                                targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                label = "media_type_color"
-                                            )
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(CircleShape)
-                                                    .clickable(
-                                                        interactionSource = remember { MutableInteractionSource() },
-                                                        indication = null
-                                                    ) {
-                                                        if (selectedMediaType != type) {
-                                                            selectedMediaType = type
-                                                            fetchShows(1, reset = true)
-                                                        }
-                                                    }
-                                                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = icon,
-                                                        contentDescription = label,
-                                                        tint = contentColor,
-                                                        modifier = Modifier.size(16.dp)
-                                                    )
-                                                    Text(
-                                                        text = label,
-                                                        color = contentColor,
-                                                        fontSize = 12.sp,
-                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            IconButton(
-                                onClick = { isSearchActive = true },
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .shadow(2.dp, CircleShape)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surface)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Search,
-                                    contentDescription = "Search",
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-
-                            IconButton(
-                                onClick = onNavigateToSettings,
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .shadow(2.dp, CircleShape)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surface)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Settings,
-                                    contentDescription = "Settings",
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                    },
+                    onCloseSearch = {
+                        isSearchActive = false
+                        searchQuery = ""
+                        fetchShows(1, reset = true)
+                    },
+                    onOpenSearch = { isSearchActive = true },
+                    onSelectMediaType = { type ->
+                        if (selectedMediaType != type) {
+                            selectedMediaType = type
+                            fetchShows(1, reset = true)
                         }
-                    }
-                }
+                    },
+                    onNavigateToSettings = onNavigateToSettings
+                )
             }
 
             // Unified Filter Strip (SUB/DUB Pill + Category Chips)
@@ -502,119 +315,25 @@ fun HomeScreen(
                 contentType = "filters",
                 span = { GridItemSpan(2) }
             ) {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp)
-                ) {
-                    // 1. SUB / DUB Toggle Pill (when in Anime mode)
-                    if (selectedMediaType == "anime") {
-                        item(key = "sub_dub_pill") {
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                                    .padding(2.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                // Sliding Gradient Background Indicator
-                                Row(modifier = Modifier.matchParentSize()) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxHeight()
-                                            .weight(1f)
-                                            .align(Alignment.CenterVertically),
-                                        contentAlignment = BiasAlignment(animatedBias, 0f)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxHeight()
-                                                .fillMaxWidth(0.5f)
-                                                .clip(CircleShape)
-                                                .background(AkiraLogoGradientBrush)
-                                        )
-                                    }
-                                }
-
-                                // Labels Row
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    listOf("sub" to "SUB", "dub" to "DUB").forEach { (type, label) ->
-                                        val isSelected = translationType == type
-                                        val textColor by animateColorAsState(
-                                            targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            label = "pill_text_color"
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(CircleShape)
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null
-                                                ) {
-                                                    if (translationType != type) {
-                                                        translationType = type
-                                                        fetchShows(1, reset = true)
-                                                    }
-                                                }
-                                                .padding(horizontal = 12.dp, vertical = 5.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = label,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = textColor
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                HomeFilterStrip(
+                    selectedMediaType = selectedMediaType,
+                    translationType = translationType,
+                    animatedBias = animatedBias,
+                    categories = categories,
+                    selectedCategoryIndex = selectedCategoryIndex,
+                    onSelectTranslationType = { type ->
+                        if (translationType != type) {
+                            translationType = type
+                            fetchShows(1, reset = true)
                         }
-
-                        // 2. Vertical Divider Line
-                        item(key = "divider") {
-                            Box(
-                                modifier = Modifier
-                                    .width(1.dp)
-                                    .height(18.dp)
-                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                            )
+                    },
+                    onSelectCategory = { index ->
+                        if (selectedCategoryIndex != index) {
+                            selectedCategoryIndex = index
+                            fetchShows(1, reset = true)
                         }
                     }
-
-                    // 3. Category Chips
-                    itemsIndexed(categories) { index, (label, _) ->
-                        val isSelected = selectedCategoryIndex == index
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .then(
-                                    if (isSelected) {
-                                        Modifier.background(AkiraLogoGradientBrush)
-                                    } else {
-                                        Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                                    }
-                                )
-                                .clickable {
-                                    if (selectedCategoryIndex != index) {
-                                        selectedCategoryIndex = index
-                                        fetchShows(1, reset = true)
-                                    }
-                                }
-                                .padding(horizontal = 14.dp, vertical = 7.dp)
-                        ) {
-                            Text(
-                                text = label,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                }
+                )
             }
 
             // Featured Banner header item (shown for anime mode)

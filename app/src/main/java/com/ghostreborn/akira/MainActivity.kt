@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.graphics.Color
+import com.ghostreborn.akira.ui.components.AkiraBottomNavigationBar
 import com.ghostreborn.akira.ui.components.AkiraLogoGradientBrush
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
 import androidx.compose.material3.Icon
@@ -161,125 +162,17 @@ fun AkiraAppNavigation() {
     Scaffold(
         bottomBar = {
             if (isBottomBarVisible) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val navItems = remember {
-                        listOf(
-                            Triple("home", "Home", Icons.Rounded.Home),
-                            Triple("watchlist", "Watchlist", Icons.Rounded.Bookmark),
-                            Triple("schedule", "Schedule", Icons.Rounded.CalendarToday),
-                            Triple("downloads", "Downloads", Icons.Rounded.Download)
-                        )
-                    }
-
-                    val selectedIndex = navItems.indexOfFirst { (route, _, _) ->
-                        if (route == "home") currentDestination?.startsWith("home") == true
-                        else currentDestination == route
-                    }.coerceAtLeast(0)
-
-                    val targetNavBias = -1f + (selectedIndex * (2f / (navItems.size - 1)))
-                    val animatedNavBias by animateFloatAsState(
-                        targetValue = targetNavBias,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
-                        ),
-                        label = "bottom_nav_slider_bias"
-                    )
-
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                        tonalElevation = 6.dp,
-                        modifier = Modifier
-                            .fillMaxWidth(0.92f)
-                            .shadow(12.dp, CircleShape, spotColor = AkiraPrimary.copy(alpha = 0.25f))
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            // Smooth Sliding Gradient Indicator
-                            Row(modifier = Modifier.matchParentSize()) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxHeight()
-                                        .weight(1f)
-                                        .align(Alignment.CenterVertically),
-                                    contentAlignment = BiasAlignment(animatedNavBias, 0f)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxHeight()
-                                            .fillMaxWidth(1f / navItems.size)
-                                            .clip(CircleShape)
-                                            .background(AkiraLogoGradientBrush)
-                                    )
-                                }
-                            }
-
-                            // Interactive Navigation Tab Items
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                navItems.forEachIndexed { index, (route, label, icon) ->
-                                    val isSelected = index == selectedIndex
-                                    val contentColor by animateColorAsState(
-                                        targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        label = "nav_item_content_color"
-                                    )
-
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clip(CircleShape)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null
-                                            ) {
-                                                if (!isSelected) {
-                                                    val dest = if (route == "home") "home?query={query}" else route
-                                                    navController.navigate(dest) {
-                                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                }
-                                            }
-                                            .padding(vertical = 10.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = icon,
-                                                contentDescription = label,
-                                                tint = contentColor,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            if (isSelected) {
-                                                Text(
-                                                    text = label,
-                                                    color = contentColor,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                AkiraBottomNavigationBar(
+                    currentDestination = currentDestination,
+                    onNavigateToTab = { route ->
+                        val dest = if (route == "home") "home?query={query}" else route
+                        navController.navigate(dest) {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
                         }
                     }
-                }
+                )
             }
         }
     ) { innerPadding ->
