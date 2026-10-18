@@ -39,6 +39,10 @@ class FakeAnimeRepository : AnimeRepository {
         )
     }
 
+    override fun getCachedAnimeDetail(animeId: String): AnimeDetail? {
+        return null
+    }
+
     override suspend fun fetchEpisodeStreams(context: Context, showId: String, episodeString: String, translationType: String, authToken: String?): EpisodeFetchResult {
         return EpisodeFetchResult(
             streams = listOf(StreamSource(sourceName = "Stream 1", url = "https://example.com/1.m3u8")),

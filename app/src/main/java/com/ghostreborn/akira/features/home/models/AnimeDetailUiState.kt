@@ -12,5 +12,8 @@ data class AnimeDetailUiState(
     val episodeStreams: List<StreamSource> = emptyList(),
     val watchStatus: com.ghostreborn.akira.features.auth.services.WatchStatus? = null,
     val watchStateId: String? = null,
-    val isUpdatingWatchStatus: Boolean = false
+    val isUpdatingWatchStatus: Boolean = false,
+    val guides: List<GuideThread> = emptyList(),
+    val worldMaps: List<WorldMap> = emptyList(),
+    val isLoadingGuides: Boolean = true
 )

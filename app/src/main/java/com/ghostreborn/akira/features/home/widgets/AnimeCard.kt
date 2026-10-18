@@ -175,7 +175,7 @@ fun AnimeCard(
                 .padding(horizontal = 10.dp, vertical = 10.dp)
         ) {
             Text(
-                text = anime.englishName ?: anime.name,
+                text = anime.displayTitle,
                 color = Color.White,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,

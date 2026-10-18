@@ -71,6 +71,8 @@ interface AnimeRepository {
         context: Context? = null
     ): AnimeDetail
 
+    fun getCachedAnimeDetail(animeId: String): AnimeDetail?
+
     suspend fun fetchEpisodeStreams(
         context: Context,
         showId: String,
@@ -106,6 +108,9 @@ interface AnimeRepository {
 
         override suspend fun fetchAnimeDetail(animeId: String, context: Context?) =
             repo.fetchAnimeDetail(animeId, context)
+
+        override fun getCachedAnimeDetail(animeId: String): AnimeDetail? =
+            repo.getCachedAnimeDetail(animeId)
 
         override suspend fun fetchEpisodeStreams(context: Context, showId: String, episodeString: String, translationType: String, authToken: String?) =
             repo.fetchEpisodeStreams(context, showId, episodeString, translationType, authToken)
@@ -374,6 +379,10 @@ class DefaultAnimeRepository(
         val detail = AnimeDetail.fromJson(showMap)
         detailCache[animeId] = detail
         detail
+    }
+
+    override fun getCachedAnimeDetail(animeId: String): AnimeDetail? {
+        return detailCache[animeId]
     }
 
     private fun throwIfGraphQlErrors(json: JSONObject, fallbackMessage: String) {

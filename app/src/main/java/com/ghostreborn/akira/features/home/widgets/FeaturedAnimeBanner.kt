@@ -77,7 +77,7 @@ fun FeaturedAnimeBanner(
                 .height(210.dp)
         ) { page ->
             val show = featuredShows[page]
-            val title = show.englishName ?: show.name
+            val title = show.displayTitle
             val artwork = show.banner ?: show.thumbnail
 
             val bannerShape = RoundedCornerShape(16.dp)

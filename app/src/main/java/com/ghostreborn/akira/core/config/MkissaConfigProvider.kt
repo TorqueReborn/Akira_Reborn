@@ -33,7 +33,11 @@ data class MkissaClientConfig(
         OperationRegistry.OP_TOP_RANKED to OperationRegistry.DEFAULT_TOP_RANKED_HASH,
         OperationRegistry.OP_DETAIL to OperationRegistry.DEFAULT_DETAIL_HASH,
         OperationRegistry.OP_EPISODE to OperationRegistry.DEFAULT_EPISODE_HASH,
-        OperationRegistry.OP_CHAPTER_PAGES to OperationRegistry.DEFAULT_CHAPTER_PAGES_HASH
+        OperationRegistry.OP_CHAPTER_PAGES to OperationRegistry.DEFAULT_CHAPTER_PAGES_HASH,
+        OperationRegistry.OP_GUIDES_FOR_MEDIA to OperationRegistry.DEFAULT_GUIDES_FOR_MEDIA_HASH,
+        OperationRegistry.OP_GUIDE_DETAIL to OperationRegistry.DEFAULT_GUIDE_DETAIL_HASH,
+        OperationRegistry.OP_WORLD_MAPS to OperationRegistry.DEFAULT_WORLD_MAPS_HASH,
+        OperationRegistry.OP_WORLD_MAP to OperationRegistry.DEFAULT_WORLD_MAP_HASH
     ),
     val endpoints: MkissaEndpoints = MkissaEndpoints.default(),
     val fetchedAtMs: Long
@@ -50,6 +54,10 @@ data class MkissaClientConfig(
             OperationRegistry.OP_DETAIL -> OperationRegistry.DEFAULT_DETAIL_HASH
             OperationRegistry.OP_EPISODE -> OperationRegistry.DEFAULT_EPISODE_HASH
             OperationRegistry.OP_CHAPTER_PAGES -> OperationRegistry.DEFAULT_CHAPTER_PAGES_HASH
+            OperationRegistry.OP_GUIDES_FOR_MEDIA -> OperationRegistry.DEFAULT_GUIDES_FOR_MEDIA_HASH
+            OperationRegistry.OP_GUIDE_DETAIL -> OperationRegistry.DEFAULT_GUIDE_DETAIL_HASH
+            OperationRegistry.OP_WORLD_MAPS -> OperationRegistry.DEFAULT_WORLD_MAPS_HASH
+            OperationRegistry.OP_WORLD_MAP -> OperationRegistry.DEFAULT_WORLD_MAP_HASH
             else -> throw IllegalArgumentException("Unknown GraphQL operation: $operationName")
         }
     }

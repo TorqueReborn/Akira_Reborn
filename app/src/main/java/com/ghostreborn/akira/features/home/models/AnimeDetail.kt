@@ -210,16 +210,46 @@ data class AnimeDetail(
     val episodesDetail: AnimeEpisodeDetail = AnimeEpisodeDetail(),
     val characters: List<AnimeCharacter> = emptyList(),
     val malId: Long? = null,
-    val aniListId: Long? = null
+    val aniListId: Long? = null,
+    val relatedShows: List<AnimeRelation> = emptyList(),
+    val relatedMangas: List<AnimeRelation> = emptyList()
 ) {
+    val displayTitle: String
+        get() = listOfNotNull(englishName, name, nativeName)
+            .firstOrNull { it.isNotBlank() && !it.equals("null", ignoreCase = true) } ?: "Anime"
+
     companion object {
         fun fromJson(json: JSONObject): AnimeDetail {
+            fun clean(s: String?): String? = s?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+
             val id = json.optString("_id", "")
-            val name = when {
-                json.has("name") -> json.optString("name")
-                json.has("title") -> json.optString("title")
-                else -> "Unknown"
+            val rawName = clean(
+                when {
+                    json.has("name") -> json.optString("name")
+                    json.has("title") -> json.optString("title")
+                    else -> null
+                }
+            )
+
+            val englishName = clean(json.optString("englishName"))
+            val nativeName = clean(json.optString("nativeName"))
+
+            // Extract first valid alternative name if available
+            val altNamesArr = json.optJSONArray("altNames")
+            var firstAlt: String? = null
+            if (altNamesArr != null) {
+                for (i in 0 until altNamesArr.length()) {
+                    val candidate = clean(altNamesArr.optString(i))
+                    if (candidate != null) {
+                        firstAlt = candidate
+                        break
+                    }
+                }
             }
+
+            // Name must never be blank or literal "null"
+            val name = rawName ?: englishName ?: firstAlt ?: nativeName ?: "Anime"
+
             fun extractId(vararg keys: String): Long? {
                 val objects = listOfNotNull(
                     json,
@@ -244,8 +274,6 @@ data class AnimeDetail(
 
             val parsedMalId = extractId("malId", "mal", "myanimelist", "idMal")
             val parsedAniListId = extractId("aniListId", "anilistId", "anilist", "idAniList")
-            val englishName = json.optString("englishName").takeIf { it.isNotBlank() }
-            val nativeName = json.optString("nativeName").takeIf { it.isNotBlank() }
 
             val thumbnail = ImageUtils.resolveUrl(
                 when {
@@ -341,6 +369,24 @@ data class AnimeDetail(
                 }
             }
 
+            val relatedShowsList = mutableListOf<AnimeRelation>()
+            val relatedShowsArr = json.optJSONArray("relatedShows")
+            if (relatedShowsArr != null) {
+                for (i in 0 until relatedShowsArr.length()) {
+                    val rObj = relatedShowsArr.optJSONObject(i)
+                    if (rObj != null) relatedShowsList.add(AnimeRelation.fromJson(rObj))
+                }
+            }
+
+            val relatedMangasList = mutableListOf<AnimeRelation>()
+            val relatedMangasArr = json.optJSONArray("relatedMangas")
+            if (relatedMangasArr != null) {
+                for (i in 0 until relatedMangasArr.length()) {
+                    val rObj = relatedMangasArr.optJSONObject(i)
+                    if (rObj != null) relatedMangasList.add(AnimeRelation.fromJson(rObj))
+                }
+            }
+
             return AnimeDetail(
                 id = id,
                 name = name,
@@ -366,8 +412,29 @@ data class AnimeDetail(
                 episodesDetail = episodesDetail,
                 characters = charList,
                 malId = parsedMalId,
-                aniListId = parsedAniListId
+                aniListId = parsedAniListId,
+                relatedShows = relatedShowsList,
+                relatedMangas = relatedMangasList
             )
         }
     }
 }
+
+data class AnimeRelation(
+    val relation: String,
+    val showId: String? = null,
+    val mangaId: String? = null
+) {
+    val targetId: String get() = showId ?: mangaId ?: ""
+
+    companion object {
+        fun fromJson(json: JSONObject): AnimeRelation {
+            return AnimeRelation(
+                relation = json.optString("relation", "related"),
+                showId = json.optString("showId").takeIf { it.isNotBlank() },
+                mangaId = json.optString("mangaId").takeIf { it.isNotBlank() }
+            )
+        }
+    }
+}
+

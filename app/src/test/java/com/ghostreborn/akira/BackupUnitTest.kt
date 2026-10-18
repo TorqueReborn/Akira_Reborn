@@ -12,6 +12,38 @@ import org.junit.Test
 class BackupUnitTest {
 
     @Test
+    fun testAnimeTitleSanitization() {
+        // Test AnimeDetail.fromJson with null and string "null"
+        val jsonDetail = JSONObject("""
+            {
+                "_id": "test_1",
+                "name": "Suite Precure♪",
+                "englishName": null,
+                "nativeName": "スイート プリキュア♪",
+                "altNames": ["Suite Pretty Cure♪"]
+            }
+        """.trimIndent())
+        val detail = com.ghostreborn.akira.features.home.models.AnimeDetail.fromJson(jsonDetail)
+        assertEquals("Suite Precure♪", detail.name)
+        assertEquals(null, detail.englishName)
+        assertEquals("Suite Precure♪", detail.displayTitle)
+
+        // Test with literal string "null" for name
+        val jsonDetailWithNullString = JSONObject("""
+            {
+                "_id": "test_2",
+                "name": "null",
+                "englishName": "null",
+                "nativeName": "スイート プリキュア♪",
+                "altNames": ["Suite Pretty Cure♪"]
+            }
+        """.trimIndent())
+        val detail2 = com.ghostreborn.akira.features.home.models.AnimeDetail.fromJson(jsonDetailWithNullString)
+        assertEquals("Suite Pretty Cure♪", detail2.name)
+        assertEquals("Suite Pretty Cure♪", detail2.displayTitle)
+    }
+
+    @Test
     fun testFavoriteSerializationAndDeserialization() {
         val favorite = FavoriteAnime(
             animeId = "anime_123",

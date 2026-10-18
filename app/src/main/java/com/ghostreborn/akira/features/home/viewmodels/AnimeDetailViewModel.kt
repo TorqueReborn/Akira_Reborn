@@ -9,6 +9,7 @@ import com.ghostreborn.akira.features.home.models.AnimeDetailUiState
 import com.ghostreborn.akira.features.home.services.AnimeRepository
 import com.ghostreborn.akira.features.home.services.FavoritesManager
 import com.ghostreborn.akira.features.player.models.StreamSource
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,6 +54,55 @@ class AnimeDetailViewModel(
                                 watchStateId = ws.watchStateId
                             )
                         }
+                    }
+                }
+
+                // Load guides and world maps asynchronously
+                val isManga = detail.type?.equals("manga", ignoreCase = true) == true
+                launch {
+                    val guidesDeferred = async {
+                        try {
+                            com.ghostreborn.akira.features.home.services.GuideRepository.fetchGuidesForMedia(
+                                context = context,
+                                showId = if (!isManga) animeId else null,
+                                mangaId = if (isManga) animeId else null
+                            )
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+
+                    val mapsDeferred = async {
+                        try {
+                            com.ghostreborn.akira.features.home.services.GuideRepository.fetchWorldMaps(
+                                context = context,
+                                showId = animeId
+                            )
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+
+                    val guides = guidesDeferred.await()
+                    val maps = mapsDeferred.await()
+
+                    // If backend community guides are empty, auto-generate official franchise watch order guide from relations!
+                    val effectiveGuides = if (guides.isNotEmpty()) {
+                        guides
+                    } else {
+                        try {
+                            listOf(com.ghostreborn.akira.features.home.services.GuideRepository.buildFranchiseWatchGuide(context, detail))
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+
+                    _uiState.update {
+                        it.copy(
+                            guides = effectiveGuides,
+                            worldMaps = maps,
+                            isLoadingGuides = false
+                        )
                     }
                 }
             } catch (e: Exception) {

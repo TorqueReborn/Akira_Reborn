@@ -20,17 +20,40 @@ data class AnimeShow(
     val lastEpisodeDub: String? = null,
     val views: String? = null
 ) {
+    val displayTitle: String
+        get() = listOfNotNull(englishName, name, nativeName)
+            .firstOrNull { it.isNotBlank() && !it.equals("null", ignoreCase = true) } ?: "Anime"
+
     companion object {
+        private fun clean(s: String?): String? = s?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+
         fun fromJson(json: JSONObject): AnimeShow {
             val id = json.optString("_id", "")
-            val name = when {
-                json.has("name") -> json.optString("name")
-                json.has("title") -> json.optString("title")
-                else -> "Unknown"
+            val rawName = clean(
+                when {
+                    json.has("name") -> json.optString("name")
+                    json.has("title") -> json.optString("title")
+                    else -> null
+                }
+            )
+
+            val englishName = clean(json.optString("englishName"))
+            val nativeName = clean(json.optString("nativeName"))
+
+            // Extract first valid alternative name if available
+            val altNamesArr = json.optJSONArray("altNames")
+            var firstAlt: String? = null
+            if (altNamesArr != null) {
+                for (i in 0 until altNamesArr.length()) {
+                    val candidate = clean(altNamesArr.optString(i))
+                    if (candidate != null) {
+                        firstAlt = candidate
+                        break
+                    }
+                }
             }
 
-            val englishName = json.optString("englishName").takeIf { it.isNotBlank() }
-            val nativeName = json.optString("nativeName").takeIf { it.isNotBlank() }
+            val name = rawName ?: englishName ?: firstAlt ?: nativeName ?: "Anime"
 
             val thumbCandidate = when {
                 json.has("thumbnail") -> json.optString("thumbnail")
@@ -109,14 +132,31 @@ data class AnimeShow(
             val pageStatus = json.optJSONObject("pageStatus")
 
             val id = anyCard.optString("_id", "")
-            val name = when {
-                anyCard.has("name") -> anyCard.optString("name")
-                anyCard.has("title") -> anyCard.optString("title")
-                else -> "Unknown"
+            val rawName = clean(
+                when {
+                    anyCard.has("name") -> anyCard.optString("name")
+                    anyCard.has("title") -> anyCard.optString("title")
+                    else -> null
+                }
+            )
+
+            val englishName = clean(anyCard.optString("englishName"))
+            val nativeName = clean(anyCard.optString("nativeName"))
+
+            // Extract first valid alternative name if available
+            val altNamesArr = anyCard.optJSONArray("altNames")
+            var firstAlt: String? = null
+            if (altNamesArr != null) {
+                for (i in 0 until altNamesArr.length()) {
+                    val candidate = clean(altNamesArr.optString(i))
+                    if (candidate != null) {
+                        firstAlt = candidate
+                        break
+                    }
+                }
             }
 
-            val englishName = anyCard.optString("englishName").takeIf { it.isNotBlank() }
-            val nativeName = anyCard.optString("nativeName").takeIf { it.isNotBlank() }
+            val name = rawName ?: englishName ?: firstAlt ?: nativeName ?: "Anime"
 
             val thumbCandidate = when {
                 anyCard.has("thumbnail") -> anyCard.optString("thumbnail")

@@ -44,6 +44,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Share
@@ -114,6 +115,8 @@ fun AnimeDetailScreen(
     onPlayEpisode: (String, List<StreamSource>, Long, List<String>, String, Long?) -> Unit,
     onReadChapter: ((String, String) -> Unit)? = null,
     onFilterByGenre: ((String) -> Unit)? = null,
+    onOpenGuide: ((String, String?) -> Unit)? = null,
+    onOpenMap: ((String, String?) -> Unit)? = null,
     viewModel: AnimeDetailViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -296,7 +299,10 @@ fun AnimeDetailScreen(
                 val d = uiState.animeDetail!!
                 val posterUrl = d.thumbnail ?: posterHint
                 val bannerUrl = d.banner ?: d.thumbnail ?: posterHint
-                val title = d.englishName ?: d.name.takeIf { it.isNotBlank() } ?: titleHint ?: "Anime"
+                val safeTitleHint = titleHint?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                val title = listOfNotNull(d.englishName, d.name, safeTitleHint, d.nativeName)
+                    .firstOrNull { it.isNotBlank() && !it.equals("null", ignoreCase = true) } ?: "Anime"
+                val safeNativeName = d.nativeName?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) && !it.equals(title, ignoreCase = true) }
 
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     // Hero Banner with Poster Card
@@ -467,10 +473,10 @@ fun AnimeDetailScreen(
                                         overflow = TextOverflow.Ellipsis
                                     )
 
-                                    if (!d.nativeName.isNullOrBlank()) {
+                                    if (safeNativeName != null) {
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
-                                            text = d.nativeName,
+                                            text = safeNativeName,
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,
@@ -620,6 +626,42 @@ fun AnimeDetailScreen(
                                                 )
                                             }
                                         }
+                                    }
+                                }
+
+                                // Quick Guide & Map Pill Button
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(AkiraLogoGradientBrush)
+                                        .clickable {
+                                            val firstGuide = uiState.guides.firstOrNull()
+                                            val firstMap = uiState.worldMaps.firstOrNull()
+                                            if (firstMap != null) {
+                                                onOpenMap?.invoke(firstMap.id, firstMap.title)
+                                            } else if (firstGuide != null) {
+                                                onOpenGuide?.invoke(firstGuide.id, firstGuide.title)
+                                            } else {
+                                                // Fall back to opening franchise guide with title
+                                                onOpenGuide?.invoke("franchise_guide_${d.id}", "${d.englishName ?: d.name}: Watch Order")
+                                            }
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Map,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "GUIDES & MAPS",
+                                            color = Color.White,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     }
                                 }
                             }
@@ -829,6 +871,20 @@ fun AnimeDetailScreen(
                                 Spacer(modifier = Modifier.height(20.dp))
                                 SoundtrackSection(tracks = soundtracks)
                             }
+
+                            // Watch Order Maps & Guides
+                            Spacer(modifier = Modifier.height(20.dp))
+                            com.ghostreborn.akira.features.home.widgets.detail.WatchOrderGuidesSection(
+                                guides = uiState.guides,
+                                worldMaps = uiState.worldMaps,
+                                isLoading = uiState.isLoadingGuides,
+                                onOpenGuide = { guide ->
+                                    onOpenGuide?.invoke(guide.id, guide.title)
+                                },
+                                onOpenMap = { map ->
+                                    onOpenMap?.invoke(map.id, map.title)
+                                }
+                            )
 
                             // Resume button if available
                             if (lastWatchedEp != null) {

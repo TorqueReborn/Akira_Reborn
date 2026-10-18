@@ -1,5 +1,6 @@
 package com.ghostreborn.akira.features.home.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -11,7 +12,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -35,21 +34,19 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.CalendarToday
+import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,8 +58,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -75,13 +72,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.ghostreborn.akira.core.di.ServiceLocator
 import com.ghostreborn.akira.features.home.models.AnimeShow
 import com.ghostreborn.akira.features.home.services.AnimeRepository
 import com.ghostreborn.akira.features.home.services.FavoriteAnime
 import com.ghostreborn.akira.features.home.services.FavoritesManager
 import com.ghostreborn.akira.features.home.widgets.AnimeCard
-import com.ghostreborn.akira.features.home.widgets.FeaturedAnimeBanner
 import com.ghostreborn.akira.features.home.widgets.FavoritesRowSection
+import com.ghostreborn.akira.features.home.widgets.FeaturedAnimeBanner
+import com.ghostreborn.akira.features.home.widgets.MiniMusicPlayerBar
 import com.ghostreborn.akira.ui.components.AkiraLogoGradientBrush
 import com.ghostreborn.akira.ui.theme.AkiraPrimary
 import kotlinx.coroutines.Job
@@ -138,6 +137,16 @@ fun HomeScreen(
         label = "pill_translation_bias"
     )
 
+    val targetMediaBias = if (selectedMediaType == "anime") -1f else 1f
+    val animatedMediaBias by animateFloatAsState(
+        targetValue = targetMediaBias,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "pill_media_bias"
+    )
+
     fun fetchShows(page: Int, reset: Boolean = false) {
         if (page > 1 && (isLoading || isLoadingMore || !hasMore)) return
         if (page == 1 && isLoading && !reset) return
@@ -155,7 +164,7 @@ fun HomeScreen(
                 val sortBy = categories[selectedCategoryIndex].second
                 val q = searchQuery.trim().ifEmpty { null }
                 val result = if (selectedMediaType == "manga") {
-                    com.ghostreborn.akira.core.di.ServiceLocator.mangaRepository.fetchMangaList(
+                    ServiceLocator.mangaRepository.fetchMangaList(
                         page = page,
                         searchQuery = q,
                         sortBy = sortBy,
@@ -252,18 +261,17 @@ fun HomeScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
-            .navigationBarsPadding()
     ) {
         // Main Anime Grid including Header and Categories as scrollable items
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             state = gridState,
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            // Header Bar Item
+            // Clean & Balanced Top App Bar
             item(
                 key = "header_bar",
                 contentType = "header",
@@ -350,204 +358,47 @@ fun HomeScreen(
                         }
                     }
                 } else {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Row 1: Brand Logo + Action Icons (Search, Watchlist, Settings)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "AKIRA",
-                                style = TextStyle(
-                                    brush = AkiraLogoGradientBrush,
-                                    fontSize = 28.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    letterSpacing = 4.sp
-                                )
+                        Text(
+                            text = "AKIRA",
+                            style = TextStyle(
+                                brush = AkiraLogoGradientBrush,
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 3.sp
                             )
+                        )
 
-                            Spacer(modifier = Modifier.weight(1f))
+                        Spacer(modifier = Modifier.weight(1f))
 
-                            // Action Icons Row
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                IconButton(
-                                    onClick = { isSearchActive = true },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .shadow(2.dp, CircleShape)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surface)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Search,
-                                        contentDescription = "Search",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = onNavigateToWatchlist,
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .shadow(2.dp, CircleShape)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surface)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Bookmark,
-                                        contentDescription = "Watchlist",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = onNavigateToSchedule,
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .shadow(2.dp, CircleShape)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surface)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.CalendarToday,
-                                        contentDescription = "Airing Schedule",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = onNavigateToMusic,
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .shadow(2.dp, CircleShape)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surface)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.MusicNote,
-                                        contentDescription = "Soundtracks",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = onNavigateToDownloads,
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .shadow(2.dp, CircleShape)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surface)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Download,
-                                        contentDescription = "Downloads",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = onNavigateToSettings,
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .shadow(2.dp, CircleShape)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surface)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Settings,
-                                        contentDescription = "Settings",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        // Row 2: Mode Switchers (Anime/Manga & Sub/Dub)
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp, bottom = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Media Type (Anime / Manga) Pill Switcher
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .padding(3.dp),
-                                contentAlignment = Alignment.Center
+                            // Media Type (Anime / Manga) Floating Segmented Pill matching bottom navigation bar
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                                tonalElevation = 4.dp,
+                                modifier = Modifier.shadow(4.dp, CircleShape, spotColor = AkiraPrimary.copy(alpha = 0.2f))
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    listOf("anime" to "ANIME", "manga" to "MANGA").forEach { (type, label) ->
-                                        val isSelected = selectedMediaType == type
-                                        val textColor by animateColorAsState(
-                                            targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            label = "media_type_text"
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(CircleShape)
-                                                .then(
-                                                    if (isSelected) Modifier.background(AkiraLogoGradientBrush)
-                                                    else Modifier
-                                                )
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null
-                                                ) {
-                                                    if (selectedMediaType != type) {
-                                                        selectedMediaType = type
-                                                        fetchShows(1, reset = true)
-                                                    }
-                                                }
-                                                .padding(horizontal = 14.dp, vertical = 6.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = label,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = textColor
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (selectedMediaType == "anime") {
-                                Spacer(modifier = Modifier.width(10.dp))
-
-                                // Sub / Dub Pill Switcher
                                 Box(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .padding(3.dp),
+                                    modifier = Modifier.padding(3.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    // Sliding Gradient Background Indicator
+                                    // Sliding Gradient Pill Indicator
                                     Row(modifier = Modifier.matchParentSize()) {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxHeight()
                                                 .weight(1f)
                                                 .align(Alignment.CenterVertically),
-                                            contentAlignment = androidx.compose.ui.BiasAlignment(animatedBias, 0f)
+                                            contentAlignment = BiasAlignment(animatedMediaBias, 0f)
                                         ) {
                                             Box(
                                                 modifier = Modifier
@@ -559,13 +410,17 @@ fun HomeScreen(
                                         }
                                     }
 
-                                    // Labels Row
+                                    // Interactive Labels & Icons Row
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        listOf("sub" to "SUB", "dub" to "DUB").forEach { (type, label) ->
-                                            val isSelected = translationType == type
-                                            val textColor by animateColorAsState(
+                                        val mediaTypes = listOf(
+                                            Triple("anime", "Anime", Icons.Rounded.Tv),
+                                            Triple("manga", "Manga", Icons.Rounded.AutoStories)
+                                        )
+                                        mediaTypes.forEach { (type, label, icon) ->
+                                            val isSelected = selectedMediaType == type
+                                            val contentColor by animateColorAsState(
                                                 targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                label = "pill_text_color"
+                                                label = "media_type_color"
                                             )
                                             Box(
                                                 modifier = Modifier
@@ -574,50 +429,173 @@ fun HomeScreen(
                                                         interactionSource = remember { MutableInteractionSource() },
                                                         indication = null
                                                     ) {
-                                                        if (translationType != type) {
-                                                            translationType = type
+                                                        if (selectedMediaType != type) {
+                                                            selectedMediaType = type
                                                             fetchShows(1, reset = true)
                                                         }
                                                     }
-                                                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                                                    .padding(horizontal = 12.dp, vertical = 6.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Text(
-                                                    text = label,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = textColor
-                                                )
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = icon,
+                                                        contentDescription = label,
+                                                        tint = contentColor,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Text(
+                                                        text = label,
+                                                        color = contentColor,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                 }
+                            }
+
+                            IconButton(
+                                onClick = { isSearchActive = true },
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .shadow(2.dp, CircleShape)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Search,
+                                    contentDescription = "Search",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = onNavigateToSettings,
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .shadow(2.dp, CircleShape)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Settings,
+                                    contentDescription = "Settings",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     }
                 }
             }
 
-            // Category Chips Row Item
+            // Unified Filter Strip (SUB/DUB Pill + Category Chips)
             item(
-                key = "category_chips",
-                contentType = "categories",
+                key = "unified_filter_strip",
+                contentType = "filters",
                 span = { GridItemSpan(2) }
             ) {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    verticalAlignment = Alignment.CenterVertically,
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp)
                 ) {
+                    // 1. SUB / DUB Toggle Pill (when in Anime mode)
+                    if (selectedMediaType == "anime") {
+                        item(key = "sub_dub_pill") {
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                                    .padding(2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                // Sliding Gradient Background Indicator
+                                Row(modifier = Modifier.matchParentSize()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .weight(1f)
+                                            .align(Alignment.CenterVertically),
+                                        contentAlignment = BiasAlignment(animatedBias, 0f)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(0.5f)
+                                                .clip(CircleShape)
+                                                .background(AkiraLogoGradientBrush)
+                                        )
+                                    }
+                                }
+
+                                // Labels Row
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    listOf("sub" to "SUB", "dub" to "DUB").forEach { (type, label) ->
+                                        val isSelected = translationType == type
+                                        val textColor by animateColorAsState(
+                                            targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            label = "pill_text_color"
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(CircleShape)
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {
+                                                    if (translationType != type) {
+                                                        translationType = type
+                                                        fetchShows(1, reset = true)
+                                                    }
+                                                }
+                                                .padding(horizontal = 12.dp, vertical = 5.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = textColor
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. Vertical Divider Line
+                        item(key = "divider") {
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(18.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            )
+                        }
+                    }
+
+                    // 3. Category Chips
                     itemsIndexed(categories) { index, (label, _) ->
                         val isSelected = selectedCategoryIndex == index
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(CircleShape)
                                 .then(
                                     if (isSelected) {
                                         Modifier.background(AkiraLogoGradientBrush)
                                     } else {
-                                        Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
+                                        Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                                     }
                                 )
                                 .clickable {
@@ -626,13 +604,13 @@ fun HomeScreen(
                                         fetchShows(1, reset = true)
                                     }
                                 }
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                                .padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Text(
                                 text = label,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 13.sp
+                                fontSize = 12.sp
                             )
                         }
                     }
@@ -747,11 +725,11 @@ fun HomeScreen(
             }
         }
 
-        // Mini Floating Music Player Bar
-        com.ghostreborn.akira.features.home.widgets.MiniMusicPlayerBar(
+        // Mini Floating Music Player
+        MiniMusicPlayerBar(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
+                .fillMaxWidth()
         )
     }
 }
